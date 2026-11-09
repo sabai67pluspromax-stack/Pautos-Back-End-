@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "auth/_field.html" import field %}
+{% block title %}New request{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>New request</h1>
+
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    {{ field(form.category_id) }}
+    <ul class="cat-hints">
+      {% for c in form.categories %}
+        <li><strong>{{ c.name }}</strong> ({{ "%.2f"|format(c.base_fee) }} PHP service fee): {{ c.description }}</li>
+      {% endfor %}
+    </ul>
+    {{ field(form.instructions) }}
+    {{ field(form.pickup_address) }}
+    {{ field(form.dropoff_address, autocomplete="street-address") }}
+    {{ field(form.item_budget) }}
+    <p class="muted">The service fee is set by the category. You pay the rider the item or bill cost on top of it.</p>
+    <button class="btn" type="submit">Submit request</button>
+  </form>
+</section>
+{% endblock %}

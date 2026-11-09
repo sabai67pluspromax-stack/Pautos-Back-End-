@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Riders{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Riders</h1>
+  <p class="muted"><a href="{{ url_for('admin.dashboard') }}">Back to admin</a></p>
+
+  {% if riders %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Contact</th><th>Vehicle</th><th>Verification</th><th>Availability</th><th>Joined</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for r in riders %}
+        <tr>
+          <td>{{ r.full_name }}</td>
+          <td>{{ r.user.email }}<br><span class="muted">{{ r.phone }}</span></td>
+          <td>{{ (r.vehicle_type or "-")|title }}{% if r.plate_number %}<br><span class="muted">{{ r.plate_number }}</span>{% endif %}</td>
+          <td><span class="badge {{ r.verification_status }}">{{ r.verification_status|title }}</span></td>
+          <td><span class="badge {{ r.availability_status }}">{{ r.availability_status|title }}</span></td>
+          <td>{{ r.user.created_at|ph_time }}</td>
+          <td class="row-actions">
+            {% if r.verification_status != 'approved' %}
+            <form method="post" action="{{ url_for('admin.set_rider_status', rider_id=r.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="status" value="approved">
+              <button class="btn small" type="submit">Approve</button>
+            </form>
+            {% endif %}
+            {% if r.verification_status != 'rejected' %}
+            <form method="post" action="{{ url_for('admin.set_rider_status', rider_id=r.id) }}"
+                  onsubmit="return confirm('Reject this rider?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="status" value="rejected">
+              <button class="btn small danger" type="submit">Reject</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="muted">No riders have registered yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Request #{{ req.id }}{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Request #{{ req.id }} <span class="badge {{ req.status }}">{{ req.status|status_label }}</span></h1>
+
+  <dl class="details">
+    <dt>Service</dt><dd>{{ req.category.name }}</dd>
+    <dt>Instructions</dt><dd>{{ req.instructions }}</dd>
+    {% if req.pickup_address %}<dt>Pickup</dt><dd>{{ req.pickup_address }}</dd>{% endif %}
+    <dt>Deliver to</dt><dd>{{ req.dropoff_address }}</dd>
+    {% if req.item_budget is not none %}<dt>Item budget</dt><dd>{{ "%.2f"|format(req.item_budget) }} PHP</dd>{% endif %}
+    <dt>Service fee</dt><dd>{{ "%.2f"|format(req.service_fee) }} PHP</dd>
+    <dt>Rider</dt><dd>{{ req.rider.full_name if req.rider else "Waiting for a rider" }}</dd>
+  </dl>
+
+  {% if show_map %}
+    <h2>Live tracking</h2>
+    <p id="track-text" class="muted">Waiting for the rider's location...</p>
+    <div id="map" class="map"></div>
+  {% endif %}
+
+  <h2>Status history</h2>
+  <ul class="timeline">
+    {% for h in req.history %}
+      <li><strong>{{ h.status|status_label }}</strong> <span class="muted">{{ h.created_at|ph_time }}{% if h.note %} - {{ h.note }}{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+
+  {% if req.status == 'pending' %}
+  <form method="post" action="{{ url_for('customer.cancel_request', request_id=req.id) }}"
+        onsubmit="return confirm('Cancel this request?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn danger" type="submit">Cancel request</button>
+  </form>
+  {% endif %}
+
+  <p class="muted"><a href="{{ url_for('customer.request_list') }}">Back to my requests</a></p>
+</section>
+
+{% if watch %}
+{% if show_map %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endif %}
+<script>
+  const trackUrl = "{{ url_for('customer.track_request', request_id=req.id) }}";
+  const initialStatus = "{{ req.status }}";
+  const hasMap = "{{ 'yes' if show_map else 'no' }}" === "yes";
+
+  let map = null, marker = null, centered = false;
+  if (hasMap && window.L) {
+    map = L.map("map").setView([12.8797, 121.774], 5);  // Philippines until we get a position
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+  }
+
+  function describe(rider) {
+    if (rider.lat === null) return rider.name + " hasn't shared a location yet.";
+    const s = rider.seconds_ago;
+    const when = s < 15 ? "just now" : s < 90 ? s + " seconds ago" : Math.round(s / 60) + " minutes ago";
+    return rider.name + " was last seen " + when + ".";
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch(trackUrl, { headers: { "Accept": "application/json" } });
+      if (!res.ok) return;
+      const data = await res.json();
+
+      // Status changed (accepted, delivering, completed...): reload to refresh details and history
+      if (data.status !== initialStatus) { location.reload(); return; }
+
+      const text = document.getElementById("track-text");
+      if (data.rider && text) {
+        text.textContent = describe(data.rider);
+        if (map && data.rider.lat !== null) {
+          const pos = [data.rider.lat, data.rider.lng];
+          if (!marker) marker = L.marker(pos).addTo(map).bindPopup(data.rider.name);
+          else marker.setLatLng(pos);
+          if (!centered) { map.setView(pos, 16); centered = true; }
+        }
+      }
+    } catch (e) { /* network hiccup, try again on the next tick */ }
+  }
+
+  poll();
+  setInterval(poll, 5000);
+</script>
+{% endif %}
+{% endblock %}

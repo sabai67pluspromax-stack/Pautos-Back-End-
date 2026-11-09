@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Admin</h1>
+  <div class="stats">
+    <div class="stat"><strong>{{ stats.pending_riders }}</strong><span>Riders waiting for approval</span></div>
+    <div class="stat"><strong>{{ stats.open_requests }}</strong><span>Open requests</span></div>
+    <div class="stat"><strong>{{ stats.total_requests }}</strong><span>Total requests</span></div>
+    <div class="stat"><strong>{{ stats.categories }}</strong><span>Active categories</span></div>
+  </div>
+  <p>
+    <a class="btn" href="{{ url_for('admin.riders') }}">Riders</a>
+    <a class="btn secondary" href="{{ url_for('admin.categories') }}">Categories</a>
+    <a class="btn secondary" href="{{ url_for('admin.requests_overview') }}">All requests</a>
+  </p>
+</section>
+{% endblock %}

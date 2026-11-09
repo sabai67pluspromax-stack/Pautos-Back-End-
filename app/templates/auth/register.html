@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "auth/_field.html" import field %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Create an account</h1>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    {{ field(form.role) }}
+    {{ field(form.full_name, autocomplete="name") }}
+    {{ field(form.email, autocomplete="email") }}
+    {{ field(form.phone, autocomplete="tel") }}
+
+    <div id="rider-fields" hidden>
+      {{ field(form.vehicle_type) }}
+      {{ field(form.plate_number) }}
+    </div>
+
+    {{ field(form.password, autocomplete="new-password") }}
+    {{ field(form.confirm_password, autocomplete="new-password") }}
+    <button class="btn" type="submit">Register</button>
+  </form>
+  <p class="muted">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+</section>
+
+<script>
+  const roleSelect = document.getElementById("role");
+  const riderFields = document.getElementById("rider-fields");
+  function toggleRider() { riderFields.hidden = roleSelect.value !== "rider"; }
+  roleSelect.addEventListener("change", toggleRider);
+  toggleRider();
+</script>
+{% endblock %}

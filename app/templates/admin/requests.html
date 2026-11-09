@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}All requests{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>All requests</h1>
+  <p class="muted"><a href="{{ url_for('admin.dashboard') }}">Back to admin</a> | showing the latest 200</p>
+
+  {% if requests %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Service</th><th>Customer</th><th>Rider</th><th>Status</th><th>Fee</th><th>Created</th></tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+        <tr>
+          <td><a href="{{ url_for('admin.request_detail', request_id=r.id) }}">{{ r.id }}</a></td>
+          <td>{{ r.category.name }}</td>
+          <td>{{ r.customer.full_name }}</td>
+          <td>{{ r.rider.full_name if r.rider else "-" }}</td>
+          <td><span class="badge {{ r.status }}">{{ r.status|status_label }}</span></td>
+          <td>{{ "%.2f"|format(r.service_fee) }}</td>
+          <td>{{ r.created_at|ph_time }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="muted">No requests yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

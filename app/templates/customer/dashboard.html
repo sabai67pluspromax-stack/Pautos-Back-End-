@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Customer dashboard{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Hi, {{ current_user.full_name }}</h1>
+  <p>What do you need done today?</p>
+  <p>
+    <a class="btn" href="{{ url_for('customer.new_request') }}">New request</a>
+    <a class="btn secondary" href="{{ url_for('customer.request_list') }}">My requests</a>
+  </p>
+</section>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Request #{{ req.id }}{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Request #{{ req.id }} <span class="badge {{ req.status }}">{{ req.status|status_label }}</span></h1>
+  <p class="muted"><a href="{{ url_for('admin.requests_overview') }}">Back to all requests</a></p>
+
+  <dl class="details">
+    <dt>Service</dt><dd>{{ req.category.name }}</dd>
+    <dt>Instructions</dt><dd>{{ req.instructions }}</dd>
+    <dt>Pickup</dt><dd>{{ req.pickup_address }}</dd>
+    <dt>Deliver to</dt><dd>{{ req.dropoff_address }}</dd>
+    {% if req.item_budget is not none %}<dt>Item budget</dt><dd>{{ "%.2f"|format(req.item_budget) }} PHP</dd>{% endif %}
+    <dt>Service fee</dt><dd>{{ "%.2f"|format(req.service_fee) }} PHP</dd>
+    <dt>Customer</dt><dd>{{ req.customer.full_name }}, {{ req.customer.phone }}</dd>
+    <dt>Rider</dt>
+    <dd>
+      {% if req.rider %}
+        {{ req.rider.full_name }}, {{ req.rider.phone }}
+        <span class="badge {{ req.rider.availability_status }}">{{ req.rider.availability_status|status_label }}</span>
+      {% else %}
+        None
+      {% endif %}
+    </dd>
+    <dt>Created</dt><dd>{{ req.created_at|ph_time }}</dd>
+    {% if req.completed_at %}<dt>Completed</dt><dd>{{ req.completed_at|ph_time }}</dd>{% endif %}
+  </dl>
+
+  {% if can_cancel or can_reopen %}
+  <h2>Manage this request</h2>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="note">Note (optional, the customer can see it)</label>
+      <input type="text" name="note" id="note" maxlength="255">
+    </div>
+    <div class="actions">
+      {% if can_reopen %}
+      <button class="btn secondary" type="submit"
+              formaction="{{ url_for('admin.reopen_request', request_id=req.id) }}"
+              onclick="return confirm('Take this job from the rider and offer it to other riders?');">Return to the pool</button>
+      {% endif %}
+      {% if can_cancel %}
+      <button class="btn danger" type="submit"
+              formaction="{{ url_for('admin.cancel_request', request_id=req.id) }}"
+              onclick="return confirm('Cancel this request?');">Cancel request</button>
+      {% endif %}
+    </div>
+  </form>
+  {% endif %}
+
+  <h2>Status history</h2>
+  <ul class="timeline">
+    {% for h in req.history %}
+      <li><strong>{{ h.status|status_label }}</strong> <span class="muted">{{ h.created_at|ph_time }}{% if h.note %} - {{ h.note }}{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

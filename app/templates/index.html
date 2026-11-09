@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card hero">
+  <h1>Anything you need, delivered.</h1>
+  <p>Water, groceries, bill payments, and all kinds of errands. A rider handles it for you.</p>
+  <p>
+    <a class="btn" href="{{ url_for('auth.register') }}">Get started</a>
+    <a class="btn secondary" href="{{ url_for('auth.login') }}">Log in</a>
+  </p>
+</section>
+{% endblock %}

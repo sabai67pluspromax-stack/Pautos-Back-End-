@@ -1,0 +1,7 @@
+{% macro field(f, type="text", autocomplete=None) %}
+<div class="field">
+  {{ f.label }}
+  {{ f(autocomplete=autocomplete) }}
+  {% for err in f.errors %}<small class="error-text">{{ err }}</small>{% endfor %}
+</div>
+{% endmacro %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "auth/_field.html" import field %}
+{% block title %}My profile{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>My profile</h1>
+  <p class="muted">Email: {{ current_user.email }}</p>
+  {% if current_user.role == 'rider' %}
+    <p class="muted">Verification status: {{ profile.verification_status }}</p>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    {{ field(form.full_name, autocomplete="name") }}
+    {{ field(form.phone, autocomplete="tel") }}
+    {% if current_user.role == 'rider' %}
+      {{ field(form.vehicle_type) }}
+      {{ field(form.plate_number) }}
+    {% else %}
+      {{ field(form.default_address, autocomplete="street-address") }}
+    {% endif %}
+    <button class="btn" type="submit">Save changes</button>
+  </form>
+
+  <p class="muted"><a href="{{ url_for('profile.change_password') }}">Change password</a></p>
+</section>
+{% endblock %}

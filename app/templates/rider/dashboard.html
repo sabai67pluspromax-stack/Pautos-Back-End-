@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Rider dashboard{% endblock %}
+{% block content %}
+{% set rp = current_user.rider_profile %}
+<section class="card">
+  <h1>Hi, {{ current_user.full_name }}</h1>
+  <p class="muted">Verification status: {{ rp.verification_status }}</p>
+
+  <p>
+    Availability:
+    <span class="badge {{ rp.availability_status }}">{{ rp.availability_status|status_label }}</span>
+  </p>
+  {% if rp.availability_status == 'busy' %}
+    <p class="muted">You're on a job. You'll be available again once you complete it.</p>
+  {% else %}
+  <form method="post" action="{{ url_for('rider.update_availability') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="availability" value="{{ 'offline' if rp.availability_status == 'available' else 'available' }}">
+    <button class="btn secondary" type="submit">{{ 'Go offline' if rp.availability_status == 'available' else 'Go online' }}</button>
+  </form>
+  {% endif %}
+
+  <p>
+    <a class="btn" href="{{ url_for('rider.available_requests') }}">Available requests</a>
+    <a class="btn secondary" href="{{ url_for('rider.my_jobs') }}">My jobs and earnings</a>
+  </p>
+</section>
+{% endblock %}

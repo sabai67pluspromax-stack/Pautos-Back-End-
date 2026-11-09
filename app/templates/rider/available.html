@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Available requests{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Available requests</h1>
+
+  {% if not approved %}
+    <div class="flash info">Your rider account is still waiting for approval. You can browse requests, but you can't accept them yet.</div>
+  {% elif offline %}
+    <div class="flash info">You're offline. <a href="{{ url_for('main.rider_dashboard') }}">Go online</a> from your dashboard to accept requests.</div>
+  {% endif %}
+
+  {% for r in requests %}
+  <article class="job">
+    <h3>{{ r.category.name }} <span class="muted">#{{ r.id }}</span></h3>
+    <p>{{ r.instructions }}</p>
+    <dl class="details">
+      <dt>Pickup</dt><dd>{{ r.pickup_address }}</dd>
+      <dt>Deliver to</dt><dd>{{ r.dropoff_address }}</dd>
+      {% if r.item_budget is not none %}<dt>Item budget</dt><dd>{{ "%.2f"|format(r.item_budget) }} PHP</dd>{% endif %}
+      <dt>Your fee</dt><dd>{{ "%.2f"|format(r.service_fee) }} PHP</dd>
+      <dt>Posted</dt><dd>{{ r.created_at|ph_time }}</dd>
+    </dl>
+    <div class="actions">
+      <form method="post" action="{{ url_for('rider.accept', request_id=r.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit">Accept</button>
+      </form>
+      <form method="post" action="{{ url_for('rider.decline', request_id=r.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn secondary" type="submit">Decline</button>
+      </form>
+    </div>
+  </article>
+  {% else %}
+    <p class="muted">No requests right now. Refresh the page in a bit.</p>
+  {% endfor %}
+</section>
+{% endblock %}

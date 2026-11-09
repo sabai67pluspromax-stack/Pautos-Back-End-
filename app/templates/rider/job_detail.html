@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Job #{{ req.id }}{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Job #{{ req.id }} <span class="badge {{ req.status }}">{{ req.status|status_label }}</span></h1>
+
+  <dl class="details">
+    <dt>Service</dt><dd>{{ req.category.name }}</dd>
+    <dt>Instructions</dt><dd>{{ req.instructions }}</dd>
+    {% if req.pickup_address %}<dt>Pickup</dt><dd>{{ req.pickup_address }}</dd>{% endif %}
+    <dt>Deliver to</dt><dd>{{ req.dropoff_address }}</dd>
+    {% if req.item_budget is not none %}<dt>Item budget</dt><dd>{{ "%.2f"|format(req.item_budget) }} PHP</dd>{% endif %}
+    <dt>Your fee</dt><dd>{{ "%.2f"|format(req.service_fee) }} PHP</dd>
+    <dt>Customer</dt><dd>{{ req.customer.full_name }}, {{ req.customer.phone }}</dd>
+  </dl>
+
+  {% if is_active %}
+    <p id="loc-status" class="muted">Starting location sharing...</p>
+  {% endif %}
+
+  {% for s in next_statuses %}
+  <form method="post" action="{{ url_for('rider.update_status', request_id=req.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="status" value="{{ s }}">
+    <button class="btn" type="submit">{{ labels[s] }}</button>
+  </form>
+  {% endfor %}
+
+  {% if can_release %}
+  <details class="release">
+    <summary>Can't continue? Give this job back</summary>
+    <form method="post" action="{{ url_for('rider.release', request_id=req.id) }}"
+          onsubmit="return confirm('Give this job back? It will go to other riders.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label for="reason">Reason</label>
+        <select name="reason" id="reason" required>
+          <option value="">Select...</option>
+          {% for code, label in release_reasons %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn danger" type="submit">Give job back</button>
+    </form>
+  </details>
+  {% endif %}
+
+  <h2>Status history</h2>
+  <ul class="timeline">
+    {% for h in req.history %}
+      <li><strong>{{ h.status|status_label }}</strong> <span class="muted">{{ h.created_at|ph_time }}{% if h.note %} - {{ h.note }}{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+
+  <p class="muted"><a href="{{ url_for('rider.my_jobs') }}">Back to my jobs</a></p>
+</section>
+
+{% if is_active %}
+<script>
+  (function () {
+    const url = "{{ url_for('rider.update_location') }}";
+    const csrf = "{{ csrf_token() }}";
+    const out = document.getElementById("loc-status");
+    let lastSent = 0;
+
+    if (!("geolocation" in navigator)) {
+      out.textContent = "This device doesn't support location sharing.";
+      return;
+    }
+
+    function send(pos) {
+      const now = Date.now();
+      if (now - lastSent < 8000) return;  // at most one update every 8 seconds
+      lastSent = now;
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+        body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      })
+        .then(function (r) {
+          out.textContent = r.ok ? "Sharing your live location with the customer." : "Couldn't share your location.";
+        })
+        .catch(function () { out.textContent = "Couldn't share your location (network problem)."; });
+    }
+
+    navigator.geolocation.watchPosition(
+      send,
+      function () { out.textContent = "Location is blocked. Allow location access so the customer can track you."; },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+    );
+  })();
+</script>
+{% endif %}
+{% endblock %}
