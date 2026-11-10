@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% from "_lists.html" import pager %}
 {% block title %}My jobs{% endblock %}
 {% block content %}
 <section class="card">
   <h1>My jobs</h1>
-  <p><strong>Total earnings:</strong> {{ "%.2f"|format(earnings) }} PHP <span class="muted">({{ completed|length }} completed)</span></p>
+  <p><strong>Total earnings:</strong> {{ "%.2f"|format(earnings) }} PHP <span class="muted">({{ pagination.total }} completed)</span></p>
 
   <h2>Current job</h2>
   {% for j in active %}
@@ -17,12 +18,12 @@
   {% endfor %}
 
   <h2>Completed</h2>
-  {% if completed %}
+  {% if pagination.items %}
   <div class="table-wrap">
     <table>
       <thead><tr><th>#</th><th>Service</th><th>Deliver to</th><th>Completed</th><th>Fee</th></tr></thead>
       <tbody>
-        {% for j in completed %}
+        {% for j in pagination.items %}
         <tr>
           <td><a href="{{ url_for('rider.job_detail', request_id=j.id) }}">{{ j.id }}</a></td>
           <td>{{ j.category.name }}</td>
@@ -34,6 +35,7 @@
       </tbody>
     </table>
   </div>
+  {{ pager(pagination) }}
   {% else %}
     <p class="muted">Nothing completed yet.</p>
   {% endif %}

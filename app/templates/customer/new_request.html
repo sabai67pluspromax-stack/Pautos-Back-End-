@@ -16,9 +16,32 @@
     {{ field(form.instructions) }}
     {{ field(form.pickup_address) }}
     {{ field(form.dropoff_address, autocomplete="street-address") }}
+
+    <h2>Pin it on the map <span class="muted">(optional, helps the rider find the place)</span></h2>
+    <div class="pin-controls">
+      <label class="check"><input type="radio" name="pin_target" value="dropoff" checked> Delivery pin</label>
+      <label class="check"><input type="radio" name="pin_target" value="pickup"> Pickup pin</label>
+      <button class="btn small secondary" type="button" id="find-address">Find typed address</button>
+      <button class="btn small secondary" type="button" id="use-my-location">Use my location</button>
+      <button class="btn small secondary" type="button" id="clear-pin">Remove pin</button>
+    </div>
+    <p id="picker-msg" class="muted">Choose which pin you are placing, then tap the map or press Find.</p>
+    <div id="map-picker" class="map"></div>
+    {{ form.pickup_lat(type="hidden") }}
+    {{ form.pickup_lng(type="hidden") }}
+    {{ form.dropoff_lat(type="hidden") }}
+    {{ form.dropoff_lng(type="hidden") }}
+    {% for f in (form.pickup_lat, form.pickup_lng, form.dropoff_lat, form.dropoff_lng) %}
+      {% for err in f.errors %}<small class="error-text">{{ err }}</small>{% endfor %}
+    {% endfor %}
+
     {{ field(form.item_budget) }}
     <p class="muted">The service fee is set by the category. You pay the rider the item or bill cost on top of it.</p>
     <button class="btn" type="submit">Submit request</button>
   </form>
 </section>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/location_picker.js') }}"></script>
 {% endblock %}

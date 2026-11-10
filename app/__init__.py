@@ -29,6 +29,7 @@ def create_app(config_class=Config):
     from .profile.routes import bp as profile_bp
     from .rider.routes import bp as rider_bp
     from .seed import seed_categories
+    from werkzeug.middleware.proxy_fix import ProxyFix
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -42,6 +43,9 @@ def create_app(config_class=Config):
         with app.app_context():
             db.create_all()
             seed_categories()
+
+    if app.config.get("TRUST_PROXY"):
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     @app.template_filter("ph_time")
     def ph_time(dt):
@@ -60,6 +64,9 @@ def create_app(config_class=Config):
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        if app.config["SESSION_COOKIE_SECURE"]:
+            resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+            resp.headers.setdefault("Permissions-Policy", "geolocation=(self)")
         return resp
 
     return app

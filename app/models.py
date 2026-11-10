@@ -117,6 +117,10 @@ class ServiceRequest(db.Model):
     # EXTENSIONS: money
     item_budget = db.Column(db.Numeric(10, 2))
     service_fee = db.Column(db.Numeric(10, 2), nullable=False)
+    pickup_lat = db.Column(db.Numeric(10, 7))
+    pickup_lng = db.Column(db.Numeric(10, 7))
+    dropoff_lat = db.Column(db.Numeric(10, 7))
+    dropoff_lng = db.Column(db.Numeric(10, 7))
 
     customer = db.relationship("CustomerProfile", foreign_keys=[customer_id])
     rider = db.relationship("RiderProfile", foreign_keys=[rider_id])

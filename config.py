@@ -30,6 +30,17 @@ class Config:
     # Rate limiting (use redis:// in production)
     RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
 
+    MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
+    MAIL_PORT = int(os.environ.get("MAIL_PORT", "587"))
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+    MAIL_USE_SSL = os.environ.get("MAIL_USE_SSL", "false").lower() == "true"
+    MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"
+    MAIL_FROM = os.environ.get("MAIL_FROM", "")
+    RESET_TOKEN_MAX_AGE = 3600  # seconds
+
+    TRUST_PROXY = os.environ.get("TRUST_PROXY", "0") == "1"
+    PREFERRED_URL_SCHEME = "https" if os.environ.get("FLASK_ENV") == "production" else "http"
 
 class TestConfig(Config):
     TESTING = True

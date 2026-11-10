@@ -15,8 +15,10 @@
   </dl>
 
   {% if show_map %}
-    <h2>Live tracking</h2>
-    <p id="track-text" class="muted">Waiting for the rider's location...</p>
+    <h2>{{ "Live tracking" if req.status != 'pending' else "Map" }}</h2>
+    <p id="track-text" class="muted">
+      {% if req.status == 'pending' %}Waiting for a rider to accept. Your pins are shown below.{% else %}Waiting for the rider's location...{% endif %}
+    </p>
     <div id="map" class="map"></div>
   {% endif %}
 
@@ -47,14 +49,27 @@
   const trackUrl = "{{ url_for('customer.track_request', request_id=req.id) }}";
   const initialStatus = "{{ req.status }}";
   const hasMap = "{{ 'yes' if show_map else 'no' }}" === "yes";
+  const points = {{ points|tojson }};
 
-  let map = null, marker = null, centered = false;
+  let map = null, group = null, marker = null, fitted = false;
   if (hasMap && window.L) {
-    map = L.map("map").setView([12.8797, 121.774], 5);  // Philippines until we get a position
+    map = L.map("map").setView([12.8797, 121.774], 5);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(map);
+    group = L.featureGroup().addTo(map);
+    [["pickup", "Pickup", "#c77700"], ["dropoff", "Delivery", "#0b7a4b"]].forEach(function (item) {
+      const point = points[item[0]];
+      if (point) {
+        L.circleMarker([point.lat, point.lng], {
+          radius: 10, color: item[2], fillColor: item[2], fillOpacity: 0.8
+        }).addTo(group).bindTooltip(item[1], { permanent: true, direction: "top" });
+      }
+    });
+    if (group.getLayers().length) {
+      map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 16 });
+    }
   }
 
   function describe(rider) {
@@ -70,7 +85,6 @@
       if (!res.ok) return;
       const data = await res.json();
 
-      // Status changed (accepted, delivering, completed...): reload to refresh details and history
       if (data.status !== initialStatus) { location.reload(); return; }
 
       const text = document.getElementById("track-text");
@@ -78,12 +92,18 @@
         text.textContent = describe(data.rider);
         if (map && data.rider.lat !== null) {
           const pos = [data.rider.lat, data.rider.lng];
-          if (!marker) marker = L.marker(pos).addTo(map).bindPopup(data.rider.name);
-          else marker.setLatLng(pos);
-          if (!centered) { map.setView(pos, 16); centered = true; }
+          if (!marker) {
+            marker = L.marker(pos).addTo(group).bindPopup(data.rider.name);
+          } else {
+            marker.setLatLng(pos);
+          }
+          if (!fitted) {
+            map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 16 });
+            fitted = true;
+          }
         }
       }
-    } catch (e) { /* network hiccup, try again on the next tick */ }
+    } catch (e) { }
   }
 
   poll();

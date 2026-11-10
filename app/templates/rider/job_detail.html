@@ -14,6 +14,15 @@
     <dt>Customer</dt><dd>{{ req.customer.full_name }}, {{ req.customer.phone }}</dd>
   </dl>
 
+  {% if points.pickup or points.dropoff %}
+    <h2>Map</h2>
+    <div id="job-map" class="map"></div>
+    <p class="actions">
+      {% if points.pickup %}<a class="btn small secondary" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination={{ points.pickup.lat }},{{ points.pickup.lng }}">Navigate to pickup</a>{% endif %}
+      {% if points.dropoff %}<a class="btn small secondary" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination={{ points.dropoff.lat }},{{ points.dropoff.lng }}">Navigate to delivery</a>{% endif %}
+    </p>
+  {% endif %}
+
   {% if is_active %}
     <p id="loc-status" class="muted">Starting location sharing...</p>
   {% endif %}
@@ -54,6 +63,32 @@
   <p class="muted"><a href="{{ url_for('rider.my_jobs') }}">Back to my jobs</a></p>
 </section>
 
+{% if points.pickup or points.dropoff %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  (function () {
+    if (!window.L) return;
+    const points = {{ points|tojson }};
+    const map = L.map("job-map").setView([12.8797, 121.774], 5);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+    const group = L.featureGroup().addTo(map);
+    [["pickup", "Pickup", "#c77700"], ["dropoff", "Delivery", "#0b7a4b"]].forEach(function (item) {
+      const point = points[item[0]];
+      if (point) {
+        L.circleMarker([point.lat, point.lng], {
+          radius: 10, color: item[2], fillColor: item[2], fillOpacity: 0.8
+        }).addTo(group).bindTooltip(item[1], { permanent: true, direction: "top" });
+      }
+    });
+    map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 16 });
+  })();
+</script>
+{% endif %}
+
 {% if is_active %}
 <script>
   (function () {
@@ -69,7 +104,7 @@
 
     function send(pos) {
       const now = Date.now();
-      if (now - lastSent < 8000) return;  // at most one update every 8 seconds
+      if (now - lastSent < 8000) return;
       lastSent = now;
       fetch(url, {
         method: "POST",

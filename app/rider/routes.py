@@ -5,6 +5,7 @@ from sqlalchemy import func
 from ..constants import (
     ACTIVE_STATUSES,
     AVAILABILITY_OFFLINE,
+    PAGE_SIZE,
     RELEASE_REASONS,
     RIDER_ACTION_LABELS,
     RIDER_RELEASABLE,
@@ -21,6 +22,7 @@ from ..services import (
     decline_request,
     next_statuses,
     release_job,
+    request_points,
     save_rider_location,
     set_availability,
 )
@@ -49,17 +51,15 @@ def update_availability():
 def available_requests():
     rider = current_user.rider_profile
     declined = db.select(RiderDecline.request_id).where(RiderDecline.rider_id == rider.id)
-    requests_ = (
-        ServiceRequest.query.filter(
-            ServiceRequest.status == STATUS_PENDING,
-            ServiceRequest.id.not_in(declined),
-        )
+    stmt = (
+        db.select(ServiceRequest)
+        .where(ServiceRequest.status == STATUS_PENDING, ServiceRequest.id.not_in(declined))
         .order_by(ServiceRequest.created_at.asc(), ServiceRequest.id.asc())
-        .all()
     )
+    pagination = db.paginate(stmt, per_page=PAGE_SIZE, error_out=False)
     return render_template(
         "rider/available.html",
-        requests=requests_,
+        pagination=pagination,
         approved=rider.verification_status == VERIFICATION_APPROVED,
         offline=rider.availability_status == AVAILABILITY_OFFLINE,
     )
@@ -87,19 +87,25 @@ def decline(request_id):
 @role_required(ROLE_RIDER)
 def my_jobs():
     rider = current_user.rider_profile
-    jobs = (
-        ServiceRequest.query.filter_by(rider_id=rider.id)
+    active = (
+        ServiceRequest.query.filter(
+            ServiceRequest.rider_id == rider.id, ServiceRequest.status.in_(ACTIVE_STATUSES)
+        )
         .order_by(ServiceRequest.created_at.desc(), ServiceRequest.id.desc())
         .all()
     )
-    active = [j for j in jobs if j.status in ACTIVE_STATUSES]
-    completed = [j for j in jobs if j.status == STATUS_COMPLETED]
+    completed = (
+        db.select(ServiceRequest)
+        .where(ServiceRequest.rider_id == rider.id, ServiceRequest.status == STATUS_COMPLETED)
+        .order_by(ServiceRequest.completed_at.desc(), ServiceRequest.id.desc())
+    )
+    pagination = db.paginate(completed, per_page=PAGE_SIZE, error_out=False)
     earnings = (
         db.session.query(func.coalesce(func.sum(RiderEarning.amount), 0))
         .filter(RiderEarning.rider_id == rider.id)
         .scalar()
     )
-    return render_template("rider/jobs.html", active=active, completed=completed, earnings=earnings)
+    return render_template("rider/jobs.html", active=active, pagination=pagination, earnings=earnings)
 
 
 @bp.route("/jobs/<int:request_id>")
@@ -114,6 +120,7 @@ def job_detail(request_id):
         is_active=req.status in ACTIVE_STATUSES,
         can_release=req.status in RIDER_RELEASABLE,
         release_reasons=RELEASE_REASONS,
+        points=request_points(req),
     )
 
 
@@ -147,7 +154,6 @@ def update_location():
         lng = float(data["lng"])
     except (KeyError, TypeError, ValueError):
         return jsonify(error="lat and lng must be numbers"), 400
-    # Written so NaN and infinity are rejected too
     if not (-90 <= lat <= 90 and -180 <= lng <= 180):
         return jsonify(error="coordinates out of range"), 400
 

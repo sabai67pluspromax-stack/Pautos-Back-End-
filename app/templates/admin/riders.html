@@ -1,18 +1,19 @@
 {% extends "base.html" %}
+{% from "_lists.html" import pager %}
 {% block title %}Riders{% endblock %}
 {% block content %}
 <section class="card">
   <h1>Riders</h1>
   <p class="muted"><a href="{{ url_for('admin.dashboard') }}">Back to admin</a></p>
 
-  {% if riders %}
+  {% if pagination.items %}
   <div class="table-wrap">
     <table>
       <thead>
         <tr><th>Name</th><th>Contact</th><th>Vehicle</th><th>Verification</th><th>Availability</th><th>Joined</th><th></th></tr>
       </thead>
       <tbody>
-        {% for r in riders %}
+        {% for r in pagination.items %}
         <tr>
           <td>{{ r.full_name }}</td>
           <td>{{ r.user.email }}<br><span class="muted">{{ r.phone }}</span></td>
@@ -42,6 +43,7 @@
       </tbody>
     </table>
   </div>
+  {{ pager(pagination) }}
   {% else %}
     <p class="muted">No riders have registered yet.</p>
   {% endif %}

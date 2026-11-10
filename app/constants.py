@@ -1,9 +1,3 @@
-"""The app's fixed vocabulary in one place.
-
-Need a new status, vehicle type or role? Change it here instead of hunting through routes.
-The database stores these as plain text (VARCHAR), so editing a list never needs a migration.
-"""
-
 # Roles. The ERD lists customer and rider; admin is an extension.
 ROLE_CUSTOMER = "customer"
 ROLE_RIDER = "rider"
@@ -29,6 +23,8 @@ ALL_STATUSES = (
     STATUS_CANCELLED,
 )
 
+FILTER_STATUSES = tuple(s for s in ALL_STATUSES if s != STATUS_DECLINED)
+PAGE_SIZE = 10
 # A rider currently owns the request and is working on it
 ACTIVE_STATUSES = (STATUS_ACCEPTED, STATUS_PICKED_UP, STATUS_IN_TRANSIT)
 # Still moving (waiting for a rider, or in progress). Customer pages keep refreshing for these.

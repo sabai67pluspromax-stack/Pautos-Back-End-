@@ -1,5 +1,6 @@
 import re
 
+from decimal import Decimal
 from flask_wtf import FlaskForm
 from sqlalchemy import func
 from wtforms import (
@@ -161,6 +162,17 @@ class ChangePasswordForm(FlaskForm):
         if not self.user.check_password(field.data):
             raise ValidationError("Current password is incorrect.")
 
+class ForgotPasswordForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+
+
+class ResetPasswordForm(FlaskForm):
+    new_password = PasswordField(
+        "New password", validators=[DataRequired(), Length(min=8, max=128), strong_password]
+    )
+    confirm_password = PasswordField(
+        "Confirm new password", validators=[DataRequired(), EqualTo("new_password", "Passwords must match.")]
+    )
 
 class NewRequestForm(FlaskForm):
     category_id = SelectField("Service", coerce=int, validators=[DataRequired()])
@@ -174,6 +186,10 @@ class NewRequestForm(FlaskForm):
         places=2,
         validators=[Optional(), NumberRange(min=0, max=50000)],
     )
+    pickup_lat = DecimalField(places=7, validators=[Optional(), NumberRange(min=-90, max=90)])
+    pickup_lng = DecimalField(places=7, validators=[Optional(), NumberRange(min=-180, max=180)])
+    dropoff_lat = DecimalField(places=7, validators=[Optional(), NumberRange(min=-90, max=90)])
+    dropoff_lng = DecimalField(places=7, validators=[Optional(), NumberRange(min=-180, max=180)])
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -191,8 +207,18 @@ class NewRequestForm(FlaskForm):
         if ok and category and category.requires_purchase and self.item_budget.data is None:
             self.item_budget.errors.append("Please enter the budget or amount for this service.")
             ok = False
+        for lat, lng in ((self.pickup_lat, self.pickup_lng), (self.dropoff_lat, self.dropoff_lng)):
+            if (lat.data is None) != (lng.data is None):
+                lat.errors.append("The map pin is incomplete. Please place it again.")
+                ok = False
         return ok
 
+    def coordinates(self):
+        values = {}
+        for name in ("pickup_lat", "pickup_lng", "dropoff_lat", "dropoff_lng"):
+            value = getattr(self, name).data
+            values[name] = None if value is None else value.quantize(Decimal("0.0000001"))
+        return values
 
 class CategoryForm(FlaskForm):
     name = StringField("Name", validators=[DataRequired(), Length(min=2, max=100)])

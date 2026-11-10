@@ -288,3 +288,13 @@ def admin_reopen_request(req, admin_user, note):
         rider.availability_status = AVAILABILITY_AVAILABLE
     db.session.commit()
     return True, "Request returned to the pool. Other riders can accept it now."
+def request_points(req):
+       def pair(lat, lng):
+           if lat is None or lng is None:
+               return None
+           return {"lat": float(lat), "lng": float(lng)}
+
+       return {
+           "pickup": pair(req.pickup_lat, req.pickup_lng),
+           "dropoff": pair(req.dropoff_lat, req.dropoff_lng),
+       }

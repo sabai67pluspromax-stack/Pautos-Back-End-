@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_lists.html" import pager %}
 {% block title %}Available requests{% endblock %}
 {% block content %}
 <section class="card">
@@ -10,7 +11,7 @@
     <div class="flash info">You're offline. <a href="{{ url_for('main.rider_dashboard') }}">Go online</a> from your dashboard to accept requests.</div>
   {% endif %}
 
-  {% for r in requests %}
+  {% for r in pagination.items %}
   <article class="job">
     <h3>{{ r.category.name }} <span class="muted">#{{ r.id }}</span></h3>
     <p>{{ r.instructions }}</p>
@@ -35,5 +36,6 @@
   {% else %}
     <p class="muted">No requests right now. Refresh the page in a bit.</p>
   {% endfor %}
+  {{ pager(pagination) }}
 </section>
 {% endblock %}

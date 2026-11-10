@@ -59,3 +59,8 @@ textarea { padding: 10px 12px; border: 1px solid #cbd2d9; border-radius: 8px; fo
 .badge.offline { background: #eceff1; color: #52606d; }
 .release { margin: 16px 0; }
 .release summary { cursor: pointer; color: #6b7785; margin-bottom: 10px; }
+.pager { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.filter-form { display: flex; align-items: flex-end; gap: 10px; margin: 12px 0; }
+.filter-form .field { margin-bottom: 0; }
+.pin-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 6px 0; }
+.pin-controls .check { margin-bottom: 0; }

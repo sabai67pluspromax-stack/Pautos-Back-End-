@@ -12,5 +12,6 @@
     <button class="btn" type="submit">Log in</button>
   </form>
   <p class="muted">No account yet? <a href="{{ url_for('auth.register') }}">Register</a></p>
+  <p class="muted"><a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a></p>
 </section>
 {% endblock %}

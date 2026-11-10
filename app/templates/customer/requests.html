@@ -1,18 +1,20 @@
 {% extends "base.html" %}
+{% from "_lists.html" import pager, status_filter %}
 {% block title %}My requests{% endblock %}
 {% block content %}
 <section class="card">
   <h1>My requests</h1>
   <p><a class="btn" href="{{ url_for('customer.new_request') }}">New request</a></p>
+  {{ status_filter(statuses, current_status) }}
 
-  {% if requests %}
+  {% if pagination.items %}
   <div class="table-wrap">
     <table>
       <thead>
         <tr><th>#</th><th>Service</th><th>Deliver to</th><th>Status</th><th>Created</th></tr>
       </thead>
       <tbody>
-        {% for r in requests %}
+        {% for r in pagination.items %}
         <tr>
           <td><a href="{{ url_for('customer.request_detail', request_id=r.id) }}">{{ r.id }}</a></td>
           <td>{{ r.category.name }}</td>
@@ -24,8 +26,9 @@
       </tbody>
     </table>
   </div>
+  {{ pager(pagination) }}
   {% else %}
-    <p class="muted">You haven't made any requests yet.</p>
+    <p class="muted">{{ "No requests match that filter." if current_status else "You haven't made any requests yet." }}</p>
   {% endif %}
 </section>
 {% endblock %}
