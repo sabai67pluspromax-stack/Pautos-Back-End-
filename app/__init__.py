@@ -31,7 +31,10 @@ def create_app(config_class=Config):
     from .rider.routes import bp as rider_bp
     from .seed import seed_categories
     from werkzeug.middleware.proxy_fix import ProxyFix
+    from .api import bp as api_bp
 
+    app.register_blueprint(api_bp)
+    csrf.exempt(api_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(profile_bp)
