@@ -1,5 +1,5 @@
 import re
-
+from flask_wtf.file import FileAllowed, FileField
 from decimal import Decimal
 from flask_wtf import FlaskForm
 from sqlalchemy import func
@@ -21,6 +21,7 @@ from wtforms.validators import (
     NumberRange,
     Optional,
     ValidationError,
+    Regexp,
 )
 
 from .constants import PLATE_REQUIRED_VEHICLES, SELF_REGISTER_ROLES, VEHICLE_TYPES
@@ -211,6 +212,9 @@ class NewRequestForm(FlaskForm):
             if (lat.data is None) != (lng.data is None):
                 lat.errors.append("The map pin is incomplete. Please place it again.")
                 ok = False
+        if self.pickup_lat.data is None or self.pickup_lng.data is None:
+            self.pickup_lat.errors.append("Please pin the pickup place on the map so nearby riders can see your request.")
+            ok = False        
         return ok
 
     def coordinates(self):
@@ -239,3 +243,21 @@ class CategoryForm(FlaskForm):
             query = query.filter(ServiceCategory.id != self.category.id)
         if query.first():
             raise ValidationError("A category with that name already exists.")
+
+class GcashQrForm(FlaskForm):
+    qr_image = FileField(
+        "GCash QR image (PNG, JPG or WebP)",
+        validators=[FileAllowed(["png", "jpg", "jpeg", "webp"], "Please choose a PNG, JPG or WebP image.")],
+    )
+    gcash_name = StringField("Name shown on your GCash", validators=[Optional(), Length(max=100)])
+
+class PaymentForm(FlaskForm):
+    method = SelectField(
+        "How will you pay?",
+        choices=[("cash", "Cash to the rider"), ("gcash_qr", "GCash: scan the rider's QR code")],
+        validators=[DataRequired()],
+    )
+    reference = StringField(
+        "GCash reference number (optional)",
+        validators=[Optional(), Length(max=40), Regexp(r"^[A-Za-z0-9 \-]*$", message="Letters, numbers, spaces and dashes only.")],
+    )

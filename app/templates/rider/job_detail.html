@@ -14,9 +14,36 @@
     <dt>Customer</dt><dd>{{ req.customer.full_name }}, {{ req.customer.phone }}</dd>
   </dl>
 
+  {% if show_payment %}
+  <h2>Payment</h2>
+  <p>
+    Method: <strong>{{ method_labels.get(req.payment_method, 'Not chosen yet') }}</strong><br>
+    Status: <strong>{{ payment_labels[req.payment_status] }}</strong>
+    {% if req.payment_reference %}<br>GCash reference: <strong>{{ req.payment_reference }}</strong>{% endif %}
+  </p>
+  {% if req.payment_status != 'confirmed' %}
+  <div class="actions">
+    <form method="post" action="{{ url_for('rider.update_payment', request_id=req.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="confirm">
+      <button class="btn" type="submit">Payment received</button>
+    </form>
+    {% if req.payment_status == 'reported' %}
+    <form method="post" action="{{ url_for('rider.update_payment', request_id=req.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="not_received">
+      <button class="btn secondary" type="submit">Not received</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="muted">Check your GCash app, or count the cash, before you confirm.</p>
+  {% endif %}
+  {% endif %}
+
   {% if points.pickup or points.dropoff %}
     <h2>Map</h2>
-    <div id="job-map" class="map"></div>
+    <div id="job-map" class="map" data-points='{{ points|tojson }}'></div>
+    <p id="job-eta" class="muted"></p>
     <p class="actions">
       {% if points.pickup %}<a class="btn small secondary" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination={{ points.pickup.lat }},{{ points.pickup.lng }}">Navigate to pickup</a>{% endif %}
       {% if points.dropoff %}<a class="btn small secondary" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination={{ points.dropoff.lat }},{{ points.dropoff.lng }}">Navigate to delivery</a>{% endif %}
@@ -66,10 +93,11 @@
 {% if points.pickup or points.dropoff %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/route_line.js') }}"></script>
 <script>
   (function () {
     if (!window.L) return;
-    const points = {{ points|tojson }};
+    const points = JSON.parse(document.getElementById("job-map").dataset.points);
     const map = L.map("job-map").setView([12.8797, 121.774], 5);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
@@ -85,6 +113,35 @@
       }
     });
     map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 16 });
+
+    const status = "{{ req.status }}";
+    const routeLine = new PautosRouteLine(map);
+    const etaEl = document.getElementById("job-eta");
+    let me = null, fitted = false;
+
+    // The location script below calls this each time the phone reports a position
+    window.pautosOnPosition = function (lat, lng) {
+      const pos = [lat, lng];
+      if (!me) {
+        me = L.marker(pos).addTo(map).bindTooltip("You", { permanent: true, direction: "top" });
+      } else {
+        me.setLatLng(pos);
+      }
+      if (!fitted) {
+        map.fitBounds(group.getBounds().extend(pos).pad(0.3), { maxZoom: 16 });
+        fitted = true;
+      }
+      const headingToPickup = status === "accepted";
+      const target = headingToPickup ? points.pickup : points.dropoff;
+      if (!target) return;
+      routeLine.update(pos, [target.lat, target.lng], function (r) {
+        if (!etaEl) return;
+        const where = headingToPickup ? "the pickup" : "the delivery spot";
+        etaEl.textContent = r.minutes
+          ? "About " + r.minutes + " min (" + r.km.toFixed(1) + " km) to " + where + "."
+          : "About " + r.km.toFixed(1) + " km to " + where + " in a straight line.";
+      });
+    };
   })();
 </script>
 {% endif %}
@@ -103,6 +160,9 @@
     }
 
     function send(pos) {
+      // Give the map script the new position (draws "You" and the route line)
+      if (window.pautosOnPosition) window.pautosOnPosition(pos.coords.latitude, pos.coords.longitude);
+
       const now = Date.now();
       if (now - lastSent < 8000) return;
       lastSent = now;

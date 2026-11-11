@@ -11,6 +11,11 @@
     <div class="flash info">You're offline. <a href="{{ url_for('main.rider_dashboard') }}">Go online</a> from your dashboard to accept requests.</div>
   {% endif %}
 
+  {% if not offline and not has_position %}
+    <div class="flash info">We don't know where you are yet, so we can't show nearby requests. Allow location access in your browser and keep this page open.</div>
+  {% endif %}
+  <p id="presence-status" class="muted"></p>
+
   {% for r in pagination.items %}
   <article class="job">
     <h3>{{ r.category.name }} <span class="muted">#{{ r.id }}</span></h3>
@@ -21,6 +26,7 @@
       {% if r.item_budget is not none %}<dt>Item budget</dt><dd>{{ "%.2f"|format(r.item_budget) }} PHP</dd>{% endif %}
       <dt>Your fee</dt><dd>{{ "%.2f"|format(r.service_fee) }} PHP</dd>
       <dt>Posted</dt><dd>{{ r.created_at|ph_time }}</dd>
+      {% if distances[r.id] is not none %}<dt>Distance</dt><dd>{{ "%.1f"|format(distances[r.id]) }} km from you</dd>{% endif %}
     </dl>
     <div class="actions">
       <form method="post" action="{{ url_for('rider.accept', request_id=r.id) }}">

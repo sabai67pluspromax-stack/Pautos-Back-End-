@@ -10,12 +10,22 @@ from ..constants import (
     ROLE_CUSTOMER,
     STATUS_CANCELLED,
     STATUS_PENDING,
+    PAYABLE_STATUSES,
+    PAYMENT_CASH,
+    PAYMENT_CONFIRMED,
+    PAYMENT_METHOD_LABELS,
+    PAYMENT_STATUS_LABELS,
 )
 from ..extensions import db
 from ..forms import NewRequestForm
 from ..models import RequestStatusHistory, ServiceRequest
 from ..services import request_points, tracking_payload
 from ..utils import role_required
+from ..extensions import db, limiter
+from ..extensions import db, limiter
+from ..forms import NewRequestForm, PaymentForm
+from ..services import report_payment, request_points, tracking_payload
+from ..uploads import send_qr_image
 
 bp = Blueprint("customer", __name__, url_prefix="/customer")
 
@@ -87,13 +97,24 @@ def request_detail(request_id):
     has_pins = bool(points["pickup"] or points["dropoff"])
     watch = req.status in OPEN_STATUSES
     show_map = req.status in ACTIVE_STATUSES or (req.status == STATUS_PENDING and has_pins)
+    show_payment = req.rider_id is not None and req.status in PAYABLE_STATUSES
+    pay_form = PaymentForm(method=req.payment_method or PAYMENT_CASH) if show_payment else None
     return render_template(
-        "customer/request_detail.html", req=req, watch=watch, show_map=show_map, points=points
+        "customer/request_detail.html",
+        req=req,
+        watch=watch,
+        show_map=show_map,
+        points=points,
+        show_payment=show_payment,
+        pay_form=pay_form,
+        method_labels=PAYMENT_METHOD_LABELS,
+        payment_labels=PAYMENT_STATUS_LABELS,
     )
 
 
 @bp.route("/requests/<int:request_id>/track")
 @role_required(ROLE_CUSTOMER)
+@limiter.limit("40 per minute")
 def track_request(request_id):
     req = get_own_request_or_404(request_id)
     return jsonify(tracking_payload(req))
@@ -114,3 +135,30 @@ def cancel_request(request_id):
     db.session.commit()
     flash("Request cancelled.", "info")
     return redirect(url_for("customer.request_detail", request_id=req.id))
+
+@bp.route("/requests/<int:request_id>/payment", methods=["POST"])
+@role_required(ROLE_CUSTOMER)
+@limiter.limit("20 per minute")
+def pay_request(request_id):
+    req = get_own_request_or_404(request_id)
+    form = PaymentForm()
+    if not form.validate_on_submit():
+        flash("Please check the payment details and try again.", "error")
+        return redirect(url_for("customer.request_detail", request_id=req.id))
+    ok, message = report_payment(req, form.method.data, form.reference.data)
+    flash(message, "success" if ok else "error")
+    return redirect(url_for("customer.request_detail", request_id=req.id))
+
+
+@bp.route("/requests/<int:request_id>/rider-qr")
+@role_required(ROLE_CUSTOMER)
+def rider_qr(request_id):
+    req = get_own_request_or_404(request_id)
+    if (
+        req.rider is None
+        or req.status not in PAYABLE_STATUSES
+        or not req.rider.gcash_qr_file
+        or req.payment_status == PAYMENT_CONFIRMED
+    ):
+        abort(404)
+    return send_qr_image(req.rider.gcash_qr_file)

@@ -12,6 +12,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from .constants import AVAILABILITY_OFFLINE, STATUS_PENDING, VERIFICATION_PENDING
 from .extensions import db, login_manager
+from .constants import AVAILABILITY_OFFLINE, PAYMENT_UNPAID, STATUS_PENDING, VERIFICATION_PENDING
 
 
 def utcnow():
@@ -82,6 +83,9 @@ class RiderProfile(db.Model):
     verification_status = db.Column(db.String(20), nullable=False, default=VERIFICATION_PENDING)
 
     user = db.relationship("User", back_populates="rider_profile")
+        
+    gcash_qr_file = db.Column(db.String(80))
+    gcash_name = db.Column(db.String(100))
 
 
 class ServiceCategory(db.Model):
@@ -131,6 +135,12 @@ class ServiceRequest(db.Model):
         order_by="RequestStatusHistory.id",
         cascade="all, delete-orphan",
     )
+
+    payment_method = db.Column(db.String(20))
+    payment_status = db.Column(db.String(20), nullable=False, default=PAYMENT_UNPAID, server_default=PAYMENT_UNPAID)
+    payment_reference = db.Column(db.String(40))
+    payment_reported_at = db.Column(db.DateTime(timezone=True))
+    payment_confirmed_at = db.Column(db.DateTime(timezone=True))
 
 
 class RequestStatusHistory(db.Model):
@@ -183,3 +193,16 @@ class RiderDecline(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+class ApiToken(db.Model):
+    """Login token for the mobile app. Only a hash is stored, so a database leak can't be replayed."""
+
+    __tablename__ = "api_token"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id"), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    device = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    last_used_at = db.Column(db.DateTime(timezone=True))
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)

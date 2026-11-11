@@ -64,3 +64,10 @@ textarea { padding: 10px 12px; border: 1px solid #cbd2d9; border-radius: 8px; fo
 .filter-form .field { margin-bottom: 0; }
 .pin-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 6px 0; }
 .pin-controls .check { margin-bottom: 0; }
+#popup-stack { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); width: min(92vw, 420px); z-index: 1000; display: grid; gap: 10px; }
+.popup-card { background: #fff; border: 2px solid #0b7a4b; border-radius: 12px; padding: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); }
+.popup-card h3 { margin: 0 0 8px; }
+.popup-card p { margin: 4px 0; }
+.popup-card .actions { display: flex; gap: 8px; margin-top: 10px; }
+.qr-preview { display: block; width: 100%; max-width: 240px; height: auto; border: 1px solid #ddd; border-radius: 8px; margin: 10px 0; }
+.qr-box { margin: 10px 0; }

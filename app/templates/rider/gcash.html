@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "auth/_field.html" import field %}
+{% block title %}My GCash QR{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>My GCash QR</h1>
+  <p class="muted">Customers who choose GCash will see this QR on their request and pay you directly. PaUtos never handles the money. Use your own GCash "Receive Money" QR, and don't upload anything that shows your balance or an ID.</p>
+
+  {% if rider.gcash_qr_file %}
+    <img class="qr-preview" src="{{ url_for('rider.gcash_qr_image') }}" alt="Your GCash QR code">
+  {% else %}
+    <p class="muted">You haven't added a QR yet, so customers can only pay you in cash.</p>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="field">
+      {{ form.qr_image.label }}
+      {{ form.qr_image(accept="image/png,image/jpeg,image/webp") }}
+      {% for err in form.qr_image.errors %}<small class="error-text">{{ err }}</small>{% endfor %}
+    </div>
+    {{ field(form.gcash_name) }}
+    <button class="btn" type="submit">Save</button>
+  </form>
+
+  {% if rider.gcash_qr_file %}
+  <form method="post" action="{{ url_for('rider.gcash_remove') }}" onsubmit="return confirm('Remove your GCash QR?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn danger" type="submit">Remove QR</button>
+  </form>
+  {% endif %}
+
+  <p class="muted"><a href="{{ url_for('main.rider_dashboard') }}">Back to dashboard</a></p>
+</section>
+{% endblock %}

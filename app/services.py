@@ -1,7 +1,4 @@
-"""Business rules for requests. Routes call these so the rules live in one place.
-
-The rider arguments are RiderProfile rows (the `rider` table), not User rows.
-"""
+import math
 from datetime import timezone
 from decimal import Decimal
 
@@ -26,6 +23,17 @@ from .constants import (
     STATUS_DECLINED,
     STATUS_PENDING,
     VERIFICATION_APPROVED,
+    LOCATION_FRESH_SECONDS,
+    NEARBY_RADIUS_KM,
+    WIDEN_AFTER_SECONDS,
+    WIDENED_RADIUS_KM,
+    PAYMENT_CASH,
+    PAYMENT_GCASH_QR,
+    PAYMENT_METHODS,
+    PAYMENT_UNPAID,
+    PAYMENT_REPORTED,
+    PAYMENT_CONFIRMED,
+    PAYABLE_STATUSES,
 )
 from .extensions import db
 from .models import (
@@ -83,6 +91,10 @@ def accept_request(request_id, rider):
         return False, "Finish your current job before accepting another one."
     if RiderDecline.query.filter_by(request_id=request_id, rider_id=rider.id).first():
         return False, "You declined or released this request earlier."
+
+    req = db.session.get(ServiceRequest, request_id)
+    if req is not None and req.status == STATUS_PENDING and not rider_can_see(req, rider_position(rider)):
+        return False, "That request is too far from you, or we don't have your location yet."
 
     # One atomic UPDATE: it only succeeds if the request is still pending AND unclaimed.
     # If two riders tap Accept at the same moment, the database lets exactly one win.
@@ -185,9 +197,16 @@ def release_job(req, rider, reason_code):
 
 
 def save_rider_location(rider, lat, lng):
-    """Add a position row for the rider. Only allowed while they have an active job."""
-    if not active_job_for(rider):
-        return False, "You don't have an active job."
+    """Store the rider's position. Allowed whenever they are online (available or on a job)."""
+    if rider.availability_status == AVAILABILITY_OFFLINE:
+        return False, "You're offline."
+    last = (
+        RiderLocation.query.filter_by(rider_id=rider.id)
+        .order_by(RiderLocation.updated_at.desc(), RiderLocation.id.desc())
+        .first()
+    )
+    if last and (utcnow() - _aware(last.updated_at)).total_seconds() < 5:
+        return True, "ok"  # too soon after the last one, skip it to keep the table small
     db.session.add(
         RiderLocation(
             rider_id=rider.id,
@@ -298,3 +317,113 @@ def request_points(req):
            "pickup": pair(req.pickup_lat, req.pickup_lng),
            "dropoff": pair(req.dropoff_lat, req.dropoff_lng),
        }
+
+EARTH_RADIUS_KM = 6371.0088
+
+
+def distance_km(lat1, lng1, lat2, lng2):
+    """Straight-line distance over the Earth's surface in km (haversine)."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = p2 - p1
+    dl = math.radians(lng2 - lng1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * EARTH_RADIUS_KM * math.asin(min(1.0, math.sqrt(a)))
+
+
+def rider_position(rider):
+    """(lat, lng) of the rider's newest position, or None if unknown or too old to trust."""
+    loc = (
+        RiderLocation.query.filter_by(rider_id=rider.id)
+        .order_by(RiderLocation.updated_at.desc(), RiderLocation.id.desc())
+        .first()
+    )
+    if loc is None:
+        return None
+    if (utcnow() - _aware(loc.updated_at)).total_seconds() > LOCATION_FRESH_SECONDS:
+        return None
+    return float(loc.lat), float(loc.lng)
+
+
+def request_distance_km(req, position):
+    if position is None or req.pickup_lat is None or req.pickup_lng is None:
+        return None
+    return distance_km(position[0], position[1], float(req.pickup_lat), float(req.pickup_lng))
+
+
+def rider_can_see(req, position, now=None):
+    now = now or utcnow()
+    if req.pickup_lat is None or req.pickup_lng is None:
+        return True  # older request with no pin: everyone sees it
+    if position is None:
+        return False
+    waited = (now - _aware(req.created_at)).total_seconds()
+    radius = WIDENED_RADIUS_KM if waited >= WIDEN_AFTER_SECONDS else NEARBY_RADIUS_KM
+    return request_distance_km(req, position) <= radius
+
+
+def visible_requests_for(rider):
+    """Pending requests this rider may see. Returns (ids, distances_by_id, position)."""
+    position = rider_position(rider)
+    now = utcnow()
+    declined = db.select(RiderDecline.request_id).where(RiderDecline.rider_id == rider.id)
+    pending = (
+        ServiceRequest.query.filter(ServiceRequest.status == STATUS_PENDING, ServiceRequest.id.not_in(declined))
+        .order_by(ServiceRequest.created_at.asc())
+        .limit(500)
+        .all()
+    )
+    ids, distances = [], {}
+    for req in pending:
+        if rider_can_see(req, position, now):
+            ids.append(req.id)
+            distances[req.id] = request_distance_km(req, position)
+    return ids, distances, position
+
+def report_payment(req, method, reference):
+    """The customer says how they are paying. Returns (ok, message)."""
+    if req.rider_id is None or req.status not in PAYABLE_STATUSES:
+        return False, "You can pay once a rider has accepted your request."
+    if req.payment_status == PAYMENT_CONFIRMED:
+        return False, "This payment was already confirmed."
+    if method not in PAYMENT_METHODS:
+        return False, "Choose a payment method."
+    if method == PAYMENT_GCASH_QR and not req.rider.gcash_qr_file:
+        return False, "This rider hasn't added a GCash QR code. Please pay in cash."
+
+    req.payment_method = method
+    req.payment_reference = (reference or "").strip() or None
+    if method == PAYMENT_GCASH_QR:
+        req.payment_status = PAYMENT_REPORTED
+        req.payment_reported_at = utcnow()
+        message = "Thanks. Your rider will confirm once they see the payment in GCash."
+    else:
+        req.payment_status = PAYMENT_UNPAID
+        req.payment_reported_at = None
+        message = "Okay. Pay your rider in cash, and they'll mark it as received."
+    db.session.commit()
+    return True, message
+
+
+def confirm_payment(req, rider):
+    """The rider says the money arrived (cash or GCash)."""
+    if req.rider_id != rider.id or req.status not in PAYABLE_STATUSES:
+        return False, "You can't confirm payment for this job."
+    if req.payment_status == PAYMENT_CONFIRMED:
+        return False, "Already confirmed."
+    req.payment_method = req.payment_method or PAYMENT_CASH
+    req.payment_status = PAYMENT_CONFIRMED
+    req.payment_confirmed_at = utcnow()
+    db.session.commit()
+    return True, "Payment confirmed."
+
+
+def reject_payment(req, rider):
+    """The rider says a reported GCash payment did not arrive."""
+    if req.rider_id != rider.id:
+        return False, "You can't change payment for this job."
+    if req.payment_status != PAYMENT_REPORTED:
+        return False, "There's no reported payment to dispute."
+    req.payment_status = PAYMENT_UNPAID
+    req.payment_reported_at = None
+    db.session.commit()
+    return True, "Marked as not received. The customer can try again or pay in cash."

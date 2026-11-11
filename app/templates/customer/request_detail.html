@@ -14,12 +14,56 @@
     <dt>Rider</dt><dd>{{ req.rider.full_name if req.rider else "Waiting for a rider" }}</dd>
   </dl>
 
+  {% if show_payment %}
+  <h2>Payment</h2>
+  <p>
+    Service fee: <strong>{{ "%.2f"|format(req.service_fee) }} PHP</strong>
+    {% if req.item_budget is not none %} plus the cost of the items (your budget was {{ "%.2f"|format(req.item_budget) }} PHP){% endif %}.
+    Pay your rider directly. PaUtos doesn't handle the money.
+  </p>
+
+  {% if req.payment_status == 'confirmed' %}
+    <p><span class="badge completed">Paid</span> {{ req.rider.full_name }} confirmed your payment{% if req.payment_method %} ({{ method_labels.get(req.payment_method, '') }}){% endif %}.</p>
+  {% else %}
+    {% if req.payment_status == 'reported' %}
+      <p><span class="badge pending">Waiting for rider to confirm</span></p>
+    {% endif %}
+
+    {% if req.rider.gcash_qr_file %}
+      <div class="qr-box">
+        <img class="qr-preview" src="{{ url_for('customer.rider_qr', request_id=req.id) }}" alt="Your rider's GCash QR code">
+        <p class="muted">
+          Scan this in the GCash app.
+          {% if req.rider.gcash_name %}The account name should be <strong>{{ req.rider.gcash_name }}</strong>. Check it before you send.{% endif %}
+        </p>
+      </div>
+    {% else %}
+      <p class="muted">This rider hasn't added a GCash QR, so please pay in cash.</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('customer.pay_request', request_id=req.id) }}">
+      {{ pay_form.hidden_tag() }}
+      <div class="field">
+        {{ pay_form.method.label }}
+        {{ pay_form.method() }}
+      </div>
+      <div class="field">
+        {{ pay_form.reference.label }}
+        {{ pay_form.reference(value=req.payment_reference or '') }}
+        {% for err in pay_form.reference.errors %}<small class="error-text">{{ err }}</small>{% endfor %}
+      </div>
+      <button class="btn" type="submit">{{ "Update" if req.payment_status == 'reported' else "I've chosen how to pay" }}</button>
+    </form>
+  {% endif %}
+  {% endif %}
+  
   {% if show_map %}
     <h2>{{ "Live tracking" if req.status != 'pending' else "Map" }}</h2>
     <p id="track-text" class="muted">
+          <p id="eta" class="muted"></p>
       {% if req.status == 'pending' %}Waiting for a rider to accept. Your pins are shown below.{% else %}Waiting for the rider's location...{% endif %}
     </p>
-    <div id="map" class="map"></div>
+    <div id="map" class="map" data-points='{{ points|tojson }}'></div>
   {% endif %}
 
   <h2>Status history</h2>
@@ -44,12 +88,14 @@
 {% if show_map %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/route_line.js') }}"></script>
 {% endif %}
 <script>
   const trackUrl = "{{ url_for('customer.track_request', request_id=req.id) }}";
   const initialStatus = "{{ req.status }}";
   const hasMap = "{{ 'yes' if show_map else 'no' }}" === "yes";
-  const points = {{ points|tojson }};
+  const mapEl = document.getElementById("map");
+  const points = mapEl ? JSON.parse(mapEl.dataset.points) : { pickup: null, dropoff: null };
 
   let map = null, group = null, marker = null, fitted = false;
   if (hasMap && window.L) {
@@ -59,6 +105,7 @@
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(map);
     group = L.featureGroup().addTo(map);
+    routeLine = new PautosRouteLine(map);
     [["pickup", "Pickup", "#c77700"], ["dropoff", "Delivery", "#0b7a4b"]].forEach(function (item) {
       const point = points[item[0]];
       if (point) {
@@ -100,6 +147,17 @@
           if (!fitted) {
             map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 16 });
             fitted = true;
+          const headingToPickup = data.status === "accepted";
+          const target = headingToPickup ? points.pickup : points.dropoff;
+          if (target && routeLine) {
+            routeLine.update(pos, [target.lat, target.lng], function (r) {
+              if (!etaEl) return;
+              const where = headingToPickup ? "the pickup" : "the delivery spot";
+              etaEl.textContent = r.minutes
+                ? "About " + r.minutes + " min (" + r.km.toFixed(1) + " km) to " + where + "."
+                : "About " + r.km.toFixed(1) + " km to " + where + " in a straight line.";
+            });
+          }
           }
         }
       }

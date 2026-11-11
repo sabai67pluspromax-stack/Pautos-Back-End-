@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta, timezone
 
 from flask import Flask
@@ -42,11 +43,12 @@ def create_app(config_class=Config):
     if app.config["AUTO_CREATE_DB"]:  # tests only; real databases come from `flask db upgrade`
         with app.app_context():
             db.create_all()
-            seed_categories()
+            seed_categories()    
 
     if app.config.get("TRUST_PROXY"):
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-
+    app.config.setdefault("UPLOAD_FOLDER", os.path.join(app.instance_path, "uploads"))
+    app.config.setdefault("MAX_CONTENT_LENGTH", 3 * 1024 * 1024)
     @app.template_filter("ph_time")
     def ph_time(dt):
         if dt is None:
