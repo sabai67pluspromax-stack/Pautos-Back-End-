@@ -1,51 +1,55 @@
 {% extends "base.html" %}
-{% from "_lists.html" import pager %}
+{% from "_ui.html" import icon, status_badge %}
 {% block title %}Riders{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Riders</h1>
-  <p class="muted"><a href="{{ url_for('admin.dashboard') }}">Back to admin</a></p>
+<a class="back-link" href="{{ url_for('admin.dashboard') }}">{{ icon('arrow-left', 15) }} Admin</a>
+<div class="page-head"><div><h1>Riders</h1><p class="muted">Approve riders before they can accept jobs.</p></div></div>
 
-  {% if pagination.items %}
+{% if riders %}
+<section class="card">
   <div class="table-wrap">
-    <table>
+    <table class="rtable">
       <thead>
         <tr><th>Name</th><th>Contact</th><th>Vehicle</th><th>Verification</th><th>Availability</th><th>Joined</th><th></th></tr>
       </thead>
       <tbody>
-        {% for r in pagination.items %}
+        {% for r in riders %}
         <tr>
-          <td>{{ r.full_name }}</td>
-          <td>{{ r.user.email }}<br><span class="muted">{{ r.phone }}</span></td>
-          <td>{{ (r.vehicle_type or "-")|title }}{% if r.plate_number %}<br><span class="muted">{{ r.plate_number }}</span>{% endif %}</td>
-          <td><span class="badge {{ r.verification_status }}">{{ r.verification_status|title }}</span></td>
-          <td><span class="badge {{ r.availability_status }}">{{ r.availability_status|title }}</span></td>
-          <td>{{ r.user.created_at|ph_time }}</td>
-          <td class="row-actions">
-            {% if r.verification_status != 'approved' %}
-            <form method="post" action="{{ url_for('admin.set_rider_status', rider_id=r.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="status" value="approved">
-              <button class="btn small" type="submit">Approve</button>
-            </form>
-            {% endif %}
-            {% if r.verification_status != 'rejected' %}
-            <form method="post" action="{{ url_for('admin.set_rider_status', rider_id=r.id) }}"
-                  onsubmit="return confirm('Reject this rider?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="status" value="rejected">
-              <button class="btn small danger" type="submit">Reject</button>
-            </form>
-            {% endif %}
+          <td class="cell-main" data-label="Name">{{ r.full_name }}</td>
+          <td data-label="Contact"><span>{{ r.user.email }}<br><span class="muted">{{ r.phone }}</span></span></td>
+          <td data-label="Vehicle"><span>{{ (r.vehicle_type or "-")|title }}{% if r.plate_number %}<br><span class="muted">{{ r.plate_number }}</span>{% endif %}</span></td>
+          <td data-label="Verification">{{ status_badge(r.verification_status, r.verification_status|title) }}</td>
+          <td data-label="Availability">{{ status_badge(r.availability_status, r.availability_status|title) }}</td>
+          <td data-label="Joined">{{ r.user.created_at|ph_time }}</td>
+          <td class="cell-actions">
+            <div class="row-actions">
+              {% if r.verification_status != 'approved' %}
+              <form method="post" action="{{ url_for('admin.set_rider_status', rider_id=r.id) }}" data-once>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="status" value="approved">
+                <button class="btn btn-sm btn-primary" type="submit">{{ icon('check', 14) }} Approve</button>
+              </form>
+              {% endif %}
+              {% if r.verification_status != 'rejected' %}
+              <form method="post" action="{{ url_for('admin.set_rider_status', rider_id=r.id) }}"
+                    onsubmit="return confirm('Reject this rider?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="status" value="rejected">
+                <button class="btn btn-sm btn-danger" type="submit">Reject</button>
+              </form>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {{ pager(pagination) }}
-  {% else %}
-    <p class="muted">No riders have registered yet.</p>
-  {% endif %}
 </section>
+{% else %}
+<section class="card empty">
+  <span class="tile-ico">{{ icon('truck', 20) }}</span>
+  <p>No riders have registered yet.</p>
+</section>
+{% endif %}
 {% endblock %}

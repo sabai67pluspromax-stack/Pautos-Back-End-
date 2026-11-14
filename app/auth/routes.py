@@ -8,9 +8,6 @@ from ..extensions import db, limiter
 from ..forms import LoginForm, RegisterForm
 from ..models import CustomerProfile, RiderProfile, User
 from ..utils import is_safe_redirect
-from ..forms import ForgotPasswordForm, ResetPasswordForm   # add to your existing forms import
-from ..mail import send_email
-from ..tokens import make_reset_token, user_from_reset_token
 
 bp = Blueprint("auth", __name__)
 
@@ -97,46 +94,3 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("main.index"))
-
-@bp.route("/forgot-password", methods=["GET", "POST"])
-@limiter.limit("5 per hour", methods=["POST"])
-def forgot_password():
-    if current_user.is_authenticated:
-        return redirect(url_for("main.dashboard"))
-
-    form = ForgotPasswordForm()
-    if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data.strip().lower()).first()
-        if user and user.is_active:
-            link = url_for("auth.reset_password", token=make_reset_token(user), _external=True)
-            send_email(
-                user.email,
-                "Reset your PaUtos password",
-                "Hi,\n\nUse this link to choose a new password. It works once and expires in 1 hour:\n\n"
-                f"{link}\n\nIf you didn't ask for this, you can ignore this email.",
-            )
-        # Same message whether or not the email exists, so the page can't be used to find accounts
-        flash("If that email has an account, we've sent a link to reset the password.", "info")
-        return redirect(url_for("auth.login"))
-
-    status = 400 if request.method == "POST" else 200
-    return render_template("auth/forgot_password.html", form=form), status
-
-
-@bp.route("/reset-password/<token>", methods=["GET", "POST"])
-@limiter.limit("10 per hour", methods=["POST"])
-def reset_password(token):
-    user = user_from_reset_token(token)
-    if user is None:
-        flash("That reset link is invalid or has expired. Please request a new one.", "error")
-        return redirect(url_for("auth.forgot_password"))
-
-    form = ResetPasswordForm()
-    if form.validate_on_submit():
-        user.set_password(form.new_password.data)
-        db.session.commit()
-        flash("Password updated. You can log in now.", "success")
-        return redirect(url_for("auth.login"))
-
-    status = 400 if request.method == "POST" else 200
-    return render_template("auth/reset_password.html", form=form), status

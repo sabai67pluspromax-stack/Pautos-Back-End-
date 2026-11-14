@@ -1,12 +1,38 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, initials %}
 {% block title %}Customer dashboard{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Hi, {{ current_user.full_name }}</h1>
-  <p>What do you need done today?</p>
-  <p>
-    <a class="btn" href="{{ url_for('customer.new_request') }}">New request</a>
-    <a class="btn secondary" href="{{ url_for('customer.request_list') }}">My requests</a>
-  </p>
+{% set cp = current_user.customer_profile %}
+<section class="dash-head">
+  <div class="avatar avatar-lg">{{ initials(current_user.full_name) }}</div>
+  <div>
+    <h1>Hi, {{ current_user.full_name.split()[0] if current_user.full_name else 'there' }}</h1>
+    <p class="muted">What do you need done today?</p>
+  </div>
+</section>
+
+<section class="tiles">
+  <a class="tile featured" href="{{ url_for('customer.new_request') }}">
+    <span class="tile-ico">{{ icon('plus', 20) }}</span>
+    <h3>New request</h3>
+    <p class="muted">Water, groceries, bills or any errand. A rider handles it.</p>
+    <span class="tile-link">Start a request {{ icon('arrow-right', 14) }}</span>
+  </a>
+  <a class="tile" href="{{ url_for('customer.request_list') }}">
+    <span class="tile-ico">{{ icon('list', 20) }}</span>
+    <h3>My requests</h3>
+    <p class="muted">Track active errands and see your history.</p>
+    <span class="tile-link">View requests {{ icon('arrow-right', 14) }}</span>
+  </a>
+  <a class="tile" href="{{ url_for('profile.edit_profile') }}">
+    <span class="tile-ico">{{ icon('map-pin', 20) }}</span>
+    <h3>Default address</h3>
+    {% if cp and cp.default_address %}
+      <p>{{ cp.default_address }}</p>
+    {% else %}
+      <p class="muted">No default address saved yet.</p>
+    {% endif %}
+    <span class="tile-link">Update in profile {{ icon('arrow-right', 14) }}</span>
+  </a>
 </section>
 {% endblock %}

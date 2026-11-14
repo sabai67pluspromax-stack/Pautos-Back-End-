@@ -1,34 +1,41 @@
 {% extends "base.html" %}
-{% from "_lists.html" import pager, status_filter %}
+{% from "_ui.html" import icon, status_badge %}
 {% block title %}My requests{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>My requests</h1>
-  <p><a class="btn" href="{{ url_for('customer.new_request') }}">New request</a></p>
-  {{ status_filter(statuses, current_status) }}
+<div class="page-head">
+  <div>
+    <h1>My requests</h1>
+    <p class="muted">Tap a request to track it.</p>
+  </div>
+  <div class="head-actions"><a class="btn btn-primary" href="{{ url_for('customer.new_request') }}">{{ icon('plus', 16) }} New request</a></div>
+</div>
 
-  {% if pagination.items %}
+{% if requests %}
+<section class="card">
   <div class="table-wrap">
-    <table>
+    <table class="rtable">
       <thead>
         <tr><th>#</th><th>Service</th><th>Deliver to</th><th>Status</th><th>Created</th></tr>
       </thead>
       <tbody>
-        {% for r in pagination.items %}
+        {% for r in requests %}
         <tr>
-          <td><a href="{{ url_for('customer.request_detail', request_id=r.id) }}">{{ r.id }}</a></td>
-          <td>{{ r.category.name }}</td>
-          <td>{{ r.dropoff_address }}</td>
-          <td><span class="badge {{ r.status }}">{{ r.status|status_label }}</span></td>
-          <td>{{ r.created_at|ph_time }}</td>
+          <td class="cell-main" data-label="#"><span><a class="num-id" href="{{ url_for('customer.request_detail', request_id=r.id) }}">#{{ r.id }}</a><span class="only-m"> · {{ r.category.name }}</span></span></td>
+          <td class="hide-m" data-label="Service">{{ r.category.name }}</td>
+          <td data-label="Deliver to">{{ r.dropoff_address }}</td>
+          <td data-label="Status">{{ status_badge(r.status, r.status|status_label) }}</td>
+          <td data-label="Created">{{ r.created_at|ph_time }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {{ pager(pagination) }}
-  {% else %}
-    <p class="muted">{{ "No requests match that filter." if current_status else "You haven't made any requests yet." }}</p>
-  {% endif %}
 </section>
+{% else %}
+<section class="card empty">
+  <span class="tile-ico">{{ icon('package', 20) }}</span>
+  <p>You haven't made any requests yet. Post your first errand and a rider will pick it up.</p>
+  <a class="btn btn-primary" href="{{ url_for('customer.new_request') }}">{{ icon('plus', 16) }} New request</a>
+</section>
+{% endif %}
 {% endblock %}

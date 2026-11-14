@@ -1,36 +1,34 @@
 {% extends "base.html" %}
-{% from "_lists.html" import pager, status_filter %}
+{% from "_ui.html" import icon, status_badge %}
 {% block title %}All requests{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>All requests</h1>
-  <p class="muted"><a href="{{ url_for('admin.dashboard') }}">Back to admin</a></p>
-  {{ status_filter(statuses, current_status) }}
+<a class="back-link" href="{{ url_for('admin.dashboard') }}">{{ icon('arrow-left', 15) }} Admin</a>
+<div class="page-head"><div><h1>All requests</h1><p class="muted">Showing the latest 200.</p></div></div>
 
-  {% if pagination.items %}
+{% if requests %}
+<section class="card">
   <div class="table-wrap">
-    <table>
+    <table class="rtable">
       <thead>
         <tr><th>#</th><th>Service</th><th>Customer</th><th>Rider</th><th>Status</th><th>Fee</th><th>Created</th></tr>
       </thead>
       <tbody>
-        {% for r in pagination.items %}
+        {% for r in requests %}
         <tr>
-          <td><a href="{{ url_for('admin.request_detail', request_id=r.id) }}">{{ r.id }}</a></td>
-          <td>{{ r.category.name }}</td>
-          <td>{{ r.customer.full_name }}</td>
-          <td>{{ r.rider.full_name if r.rider else "-" }}</td>
-          <td><span class="badge {{ r.status }}">{{ r.status|status_label }}</span></td>
-          <td>{{ "%.2f"|format(r.service_fee) }}</td>
-          <td>{{ r.created_at|ph_time }}</td>
+          <td class="cell-main" data-label="#"><span><a class="num-id" href="{{ url_for('admin.request_detail', request_id=r.id) }}">#{{ r.id }}</a><span class="only-m"> · {{ r.category.name }}</span></span></td>
+          <td class="hide-m" data-label="Service">{{ r.category.name }}</td>
+          <td data-label="Customer">{{ r.customer.full_name }}</td>
+          <td data-label="Rider">{{ r.rider.full_name if r.rider else "-" }}</td>
+          <td data-label="Status">{{ status_badge(r.status, r.status|status_label) }}</td>
+          <td data-label="Fee"><span class="money">{{ "%.2f"|format(r.service_fee) }}</span></td>
+          <td data-label="Created">{{ r.created_at|ph_time }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {{ pager(pagination) }}
-  {% else %}
-    <p class="muted">{{ "No requests match that filter." if current_status else "No requests yet." }}</p>
-  {% endif %}
 </section>
+{% else %}
+<section class="card empty"><span class="tile-ico">{{ icon('list', 20) }}</span><p>No requests yet.</p></section>
+{% endif %}
 {% endblock %}

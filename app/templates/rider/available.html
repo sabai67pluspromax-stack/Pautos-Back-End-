@@ -1,47 +1,49 @@
 {% extends "base.html" %}
-{% from "_lists.html" import pager %}
+{% from "_ui.html" import icon, route %}
 {% block title %}Available requests{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Available requests</h1>
+<div class="page-head">
+  <div>
+    <h1>Available requests</h1>
+    <p class="muted">Pick up an errand and get moving.</p>
+  </div>
+  <div class="head-actions"><a class="btn btn-ghost btn-sm" href="{{ url_for('rider.available_requests') }}">Refresh</a></div>
+</div>
 
-  {% if not approved %}
-    <div class="flash info">Your rider account is still waiting for approval. You can browse requests, but you can't accept them yet.</div>
-  {% elif offline %}
-    <div class="flash info">You're offline. <a href="{{ url_for('main.rider_dashboard') }}">Go online</a> from your dashboard to accept requests.</div>
-  {% endif %}
+{% if not approved %}
+  <div class="flash info static" role="status"><span class="flash-icon">{{ icon('info', 18) }}</span><span class="flash-text">Your rider account is still waiting for approval. You can browse requests, but you can't accept them yet.</span></div>
+{% elif offline %}
+  <div class="flash info static" role="status"><span class="flash-icon">{{ icon('info', 18) }}</span><span class="flash-text">You're offline. <a href="{{ url_for('main.rider_dashboard') }}">Go online</a> from your dashboard to accept requests.</span></div>
+{% endif %}
 
-  {% if not offline and not has_position %}
-    <div class="flash info">We don't know where you are yet, so we can't show nearby requests. Allow location access in your browser and keep this page open.</div>
-  {% endif %}
-  <p id="presence-status" class="muted"></p>
-
-  {% for r in pagination.items %}
-  <article class="job">
-    <h3>{{ r.category.name }} <span class="muted">#{{ r.id }}</span></h3>
-    <p>{{ r.instructions }}</p>
-    <dl class="details">
-      <dt>Pickup</dt><dd>{{ r.pickup_address }}</dd>
-      <dt>Deliver to</dt><dd>{{ r.dropoff_address }}</dd>
-      {% if r.item_budget is not none %}<dt>Item budget</dt><dd>{{ "%.2f"|format(r.item_budget) }} PHP</dd>{% endif %}
-      <dt>Your fee</dt><dd>{{ "%.2f"|format(r.service_fee) }} PHP</dd>
-      <dt>Posted</dt><dd>{{ r.created_at|ph_time }}</dd>
-      {% if distances[r.id] is not none %}<dt>Distance</dt><dd>{{ "%.1f"|format(distances[r.id]) }} km from you</dd>{% endif %}
-    </dl>
-    <div class="actions">
-      <form method="post" action="{{ url_for('rider.accept', request_id=r.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit">Accept</button>
-      </form>
-      <form method="post" action="{{ url_for('rider.decline', request_id=r.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn secondary" type="submit">Decline</button>
-      </form>
-    </div>
-  </article>
-  {% else %}
-    <p class="muted">No requests right now. Refresh the page in a bit.</p>
-  {% endfor %}
-  {{ pager(pagination) }}
+{% for r in requests %}
+<article class="job">
+  <div class="job-top">
+    <h3>{{ r.category.name }} <small>#{{ r.id }}</small></h3>
+    <div class="job-fee"><strong>{{ "%.2f"|format(r.service_fee) }}</strong><small>Your fee · PHP</small></div>
+  </div>
+  <p class="job-text">{{ r.instructions }}</p>
+  {{ route(r.pickup_address, r.dropoff_address) }}
+  <div class="job-meta">
+    {% if r.item_budget is not none %}<span>{{ icon('wallet', 14) }} Item budget {{ "%.2f"|format(r.item_budget) }} PHP</span>{% endif %}
+    <span>{{ icon('clock', 14) }} Posted {{ r.created_at|ph_time }}</span>
+  </div>
+  <div class="btn-row">
+    <form method="post" action="{{ url_for('rider.accept', request_id=r.id) }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary" type="submit">{{ icon('check', 16) }} Accept</button>
+    </form>
+    <form method="post" action="{{ url_for('rider.decline', request_id=r.id) }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost" type="submit">Decline</button>
+    </form>
+  </div>
+</article>
+{% else %}
+<section class="card empty">
+  <span class="tile-ico">{{ icon('inbox', 20) }}</span>
+  <p>No requests right now. Check back in a bit.</p>
+  <a class="btn btn-ghost" href="{{ url_for('rider.available_requests') }}">Refresh</a>
 </section>
+{% endfor %}
 {% endblock %}

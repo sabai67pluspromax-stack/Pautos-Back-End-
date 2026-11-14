@@ -1,122 +1,71 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, status_badge, route %}
 {% block title %}Request #{{ req.id }}{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Request #{{ req.id }} <span class="badge {{ req.status }}">{{ req.status|status_label }}</span></h1>
+<a class="back-link" href="{{ url_for('customer.request_list') }}">{{ icon('arrow-left', 15) }} My requests</a>
+<div class="page-head">
+  <div>
+    <h1>Request #{{ req.id }} {{ status_badge(req.status, req.status|status_label) }}</h1>
+    <p class="muted">{{ req.category.name }}</p>
+  </div>
+</div>
 
-  <dl class="details">
-    <dt>Service</dt><dd>{{ req.category.name }}</dd>
-    <dt>Instructions</dt><dd>{{ req.instructions }}</dd>
-    {% if req.pickup_address %}<dt>Pickup</dt><dd>{{ req.pickup_address }}</dd>{% endif %}
-    <dt>Deliver to</dt><dd>{{ req.dropoff_address }}</dd>
-    {% if req.item_budget is not none %}<dt>Item budget</dt><dd>{{ "%.2f"|format(req.item_budget) }} PHP</dd>{% endif %}
-    <dt>Service fee</dt><dd>{{ "%.2f"|format(req.service_fee) }} PHP</dd>
-    <dt>Rider</dt><dd>{{ req.rider.full_name if req.rider else "Waiting for a rider" }}</dd>
-  </dl>
+<div class="stack">
+  <section class="card">
+    <p class="card-section-title">{{ icon('navigation', 14) }} Route</p>
+    {{ route(req.pickup_address, req.dropoff_address) }}
+    <dl class="details">
+      <dt>Service</dt><dd>{{ req.category.name }}</dd>
+      <dt>Instructions</dt><dd>{{ req.instructions }}</dd>
+      {% if req.item_budget is not none %}<dt>Item budget</dt><dd><span class="money">{{ "%.2f"|format(req.item_budget) }} PHP</span></dd>{% endif %}
+      <dt>Service fee</dt><dd><span class="money">{{ "%.2f"|format(req.service_fee) }} PHP</span></dd>
+      <dt>Rider</dt><dd>{{ req.rider.full_name if req.rider else "Waiting for a rider" }}</dd>
+    </dl>
+  </section>
 
-  {% if show_payment %}
-  <h2>Payment</h2>
-  <p>
-    Service fee: <strong>{{ "%.2f"|format(req.service_fee) }} PHP</strong>
-    {% if req.item_budget is not none %} plus the cost of the items (your budget was {{ "%.2f"|format(req.item_budget) }} PHP){% endif %}.
-    Pay your rider directly. PaUtos doesn't handle the money.
-  </p>
-
-  {% if req.payment_status == 'confirmed' %}
-    <p><span class="badge completed">Paid</span> {{ req.rider.full_name }} confirmed your payment{% if req.payment_method %} ({{ method_labels.get(req.payment_method, '') }}){% endif %}.</p>
-  {% else %}
-    {% if req.payment_status == 'reported' %}
-      <p><span class="badge pending">Waiting for rider to confirm</span></p>
-    {% endif %}
-
-    {% if req.rider.gcash_qr_file %}
-      <div class="qr-box">
-        <img class="qr-preview" src="{{ url_for('customer.rider_qr', request_id=req.id) }}" alt="Your rider's GCash QR code">
-        <p class="muted">
-          Scan this in the GCash app.
-          {% if req.rider.gcash_name %}The account name should be <strong>{{ req.rider.gcash_name }}</strong>. Check it before you send.{% endif %}
-        </p>
-      </div>
-    {% else %}
-      <p class="muted">This rider hasn't added a GCash QR, so please pay in cash.</p>
-    {% endif %}
-
-    <form method="post" action="{{ url_for('customer.pay_request', request_id=req.id) }}">
-      {{ pay_form.hidden_tag() }}
-      <div class="field">
-        {{ pay_form.method.label }}
-        {{ pay_form.method() }}
-      </div>
-      <div class="field">
-        {{ pay_form.reference.label }}
-        {{ pay_form.reference(value=req.payment_reference or '') }}
-        {% for err in pay_form.reference.errors %}<small class="error-text">{{ err }}</small>{% endfor %}
-      </div>
-      <button class="btn" type="submit">{{ "Update" if req.payment_status == 'reported' else "I've chosen how to pay" }}</button>
-    </form>
-  {% endif %}
-  {% endif %}
-  
   {% if show_map %}
-    <h2>{{ "Live tracking" if req.status != 'pending' else "Map" }}</h2>
-    <p id="track-text" class="muted">
-          <p id="eta" class="muted"></p>
-      {% if req.status == 'pending' %}Waiting for a rider to accept. Your pins are shown below.{% else %}Waiting for the rider's location...{% endif %}
-    </p>
-    <div id="map" class="map" data-points='{{ points|tojson }}'></div>
+  <section class="card">
+    <p class="card-section-title">{{ icon('map-pin', 14) }} Live tracking</p>
+    <p id="track-text" class="live-text">Waiting for the rider's location...</p>
+    <div id="map" class="map"></div>
+  </section>
   {% endif %}
 
-  <h2>Status history</h2>
-  <ul class="timeline">
-    {% for h in req.history %}
-      <li><strong>{{ h.status|status_label }}</strong> <span class="muted">{{ h.created_at|ph_time }}{% if h.note %} - {{ h.note }}{% endif %}</span></li>
-    {% endfor %}
-  </ul>
+  <section class="card">
+    <p class="card-section-title">{{ icon('clock', 14) }} Status history</p>
+    <ul class="timeline">
+      {% for h in req.history %}
+        <li><strong>{{ h.status|status_label }}</strong><span class="when">{{ h.created_at|ph_time }}{% if h.note %} · {{ h.note }}{% endif %}</span></li>
+      {% endfor %}
+    </ul>
+  </section>
 
   {% if req.status == 'pending' %}
   <form method="post" action="{{ url_for('customer.cancel_request', request_id=req.id) }}"
         onsubmit="return confirm('Cancel this request?');">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn danger" type="submit">Cancel request</button>
+    <button class="btn btn-danger btn-block" type="submit">Cancel request</button>
   </form>
   {% endif %}
-
-  <p class="muted"><a href="{{ url_for('customer.request_list') }}">Back to my requests</a></p>
-</section>
+</div>
 
 {% if watch %}
 {% if show_map %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{{ url_for('static', filename='js/route_line.js') }}"></script>
 {% endif %}
 <script>
   const trackUrl = "{{ url_for('customer.track_request', request_id=req.id) }}";
   const initialStatus = "{{ req.status }}";
   const hasMap = "{{ 'yes' if show_map else 'no' }}" === "yes";
-  const mapEl = document.getElementById("map");
-  const points = mapEl ? JSON.parse(mapEl.dataset.points) : { pickup: null, dropoff: null };
 
-  let map = null, group = null, marker = null, fitted = false;
+  let map = null, marker = null, centered = false;
   if (hasMap && window.L) {
-    map = L.map("map").setView([12.8797, 121.774], 5);
+    map = L.map("map").setView([12.8797, 121.774], 5);  // Philippines until we get a position
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(map);
-    group = L.featureGroup().addTo(map);
-    routeLine = new PautosRouteLine(map);
-    [["pickup", "Pickup", "#c77700"], ["dropoff", "Delivery", "#0b7a4b"]].forEach(function (item) {
-      const point = points[item[0]];
-      if (point) {
-        L.circleMarker([point.lat, point.lng], {
-          radius: 10, color: item[2], fillColor: item[2], fillOpacity: 0.8
-        }).addTo(group).bindTooltip(item[1], { permanent: true, direction: "top" });
-      }
-    });
-    if (group.getLayers().length) {
-      map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 16 });
-    }
   }
 
   function describe(rider) {
@@ -132,6 +81,7 @@
       if (!res.ok) return;
       const data = await res.json();
 
+      // Status changed (accepted, delivering, completed...): reload to refresh details and history
       if (data.status !== initialStatus) { location.reload(); return; }
 
       const text = document.getElementById("track-text");
@@ -139,29 +89,12 @@
         text.textContent = describe(data.rider);
         if (map && data.rider.lat !== null) {
           const pos = [data.rider.lat, data.rider.lng];
-          if (!marker) {
-            marker = L.marker(pos).addTo(group).bindPopup(data.rider.name);
-          } else {
-            marker.setLatLng(pos);
-          }
-          if (!fitted) {
-            map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 16 });
-            fitted = true;
-          const headingToPickup = data.status === "accepted";
-          const target = headingToPickup ? points.pickup : points.dropoff;
-          if (target && routeLine) {
-            routeLine.update(pos, [target.lat, target.lng], function (r) {
-              if (!etaEl) return;
-              const where = headingToPickup ? "the pickup" : "the delivery spot";
-              etaEl.textContent = r.minutes
-                ? "About " + r.minutes + " min (" + r.km.toFixed(1) + " km) to " + where + "."
-                : "About " + r.km.toFixed(1) + " km to " + where + " in a straight line.";
-            });
-          }
-          }
+          if (!marker) marker = L.marker(pos).addTo(map).bindPopup(data.rider.name);
+          else marker.setLatLng(pos);
+          if (!centered) { map.setView(pos, 16); centered = true; }
         }
       }
-    } catch (e) { }
+    } catch (e) { /* network hiccup, try again on the next tick */ }
   }
 
   poll();

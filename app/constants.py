@@ -1,3 +1,9 @@
+"""The app's fixed vocabulary in one place.
+
+Need a new status, vehicle type or role? Change it here instead of hunting through routes.
+The database stores these as plain text (VARCHAR), so editing a list never needs a migration.
+"""
+
 # Roles. The ERD lists customer and rider; admin is an extension.
 ROLE_CUSTOMER = "customer"
 ROLE_RIDER = "rider"
@@ -23,8 +29,6 @@ ALL_STATUSES = (
     STATUS_CANCELLED,
 )
 
-FILTER_STATUSES = tuple(s for s in ALL_STATUSES if s != STATUS_DECLINED)
-PAGE_SIZE = 10
 # A rider currently owns the request and is working on it
 ACTIVE_STATUSES = (STATUS_ACCEPTED, STATUS_PICKED_UP, STATUS_IN_TRANSIT)
 # Still moving (waiting for a rider, or in progress). Customer pages keep refreshing for these.
@@ -77,25 +81,3 @@ VEHICLE_TYPES = (
     ("walker", "On foot"),
 )
 PLATE_REQUIRED_VEHICLES = ("motorcycle", "car")
-
-NEARBY_RADIUS_KM = 3         
-WIDENED_RADIUS_KM = 8        
-WIDEN_AFTER_SECONDS = 60
-LOCATION_FRESH_SECONDS = 120  
-
-PAYMENT_CASH = "cash"
-PAYMENT_GCASH_QR = "gcash_qr"
-PAYMENT_METHODS = (PAYMENT_CASH, PAYMENT_GCASH_QR)
-PAYMENT_METHOD_LABELS = {PAYMENT_CASH: "Cash", PAYMENT_GCASH_QR: "GCash (QR code)"}
-
-PAYMENT_UNPAID = "unpaid"
-PAYMENT_REPORTED = "reported"    # customer says they paid, waiting for the rider to confirm
-PAYMENT_CONFIRMED = "confirmed"  # rider confirmed they received it
-PAYMENT_STATUS_LABELS = {
-    PAYMENT_UNPAID: "Not paid yet",
-    PAYMENT_REPORTED: "Waiting for rider to confirm",
-    PAYMENT_CONFIRMED: "Paid",
-}
-
-# Payment is possible once a rider owns the request, until it's done
-PAYABLE_STATUSES = ACTIVE_STATUSES + (STATUS_COMPLETED,)

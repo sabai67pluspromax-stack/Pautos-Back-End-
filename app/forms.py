@@ -1,6 +1,5 @@
 import re
-from flask_wtf.file import FileAllowed, FileField
-from decimal import Decimal
+
 from flask_wtf import FlaskForm
 from sqlalchemy import func
 from wtforms import (
@@ -21,7 +20,6 @@ from wtforms.validators import (
     NumberRange,
     Optional,
     ValidationError,
-    Regexp,
 )
 
 from .constants import PLATE_REQUIRED_VEHICLES, SELF_REGISTER_ROLES, VEHICLE_TYPES
@@ -163,17 +161,6 @@ class ChangePasswordForm(FlaskForm):
         if not self.user.check_password(field.data):
             raise ValidationError("Current password is incorrect.")
 
-class ForgotPasswordForm(FlaskForm):
-    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
-
-
-class ResetPasswordForm(FlaskForm):
-    new_password = PasswordField(
-        "New password", validators=[DataRequired(), Length(min=8, max=128), strong_password]
-    )
-    confirm_password = PasswordField(
-        "Confirm new password", validators=[DataRequired(), EqualTo("new_password", "Passwords must match.")]
-    )
 
 class NewRequestForm(FlaskForm):
     category_id = SelectField("Service", coerce=int, validators=[DataRequired()])
@@ -187,10 +174,6 @@ class NewRequestForm(FlaskForm):
         places=2,
         validators=[Optional(), NumberRange(min=0, max=50000)],
     )
-    pickup_lat = DecimalField(places=7, validators=[Optional(), NumberRange(min=-90, max=90)])
-    pickup_lng = DecimalField(places=7, validators=[Optional(), NumberRange(min=-180, max=180)])
-    dropoff_lat = DecimalField(places=7, validators=[Optional(), NumberRange(min=-90, max=90)])
-    dropoff_lng = DecimalField(places=7, validators=[Optional(), NumberRange(min=-180, max=180)])
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -208,21 +191,8 @@ class NewRequestForm(FlaskForm):
         if ok and category and category.requires_purchase and self.item_budget.data is None:
             self.item_budget.errors.append("Please enter the budget or amount for this service.")
             ok = False
-        for lat, lng in ((self.pickup_lat, self.pickup_lng), (self.dropoff_lat, self.dropoff_lng)):
-            if (lat.data is None) != (lng.data is None):
-                lat.errors.append("The map pin is incomplete. Please place it again.")
-                ok = False
-        if self.pickup_lat.data is None or self.pickup_lng.data is None:
-            self.pickup_lat.errors.append("Please pin the pickup place on the map so nearby riders can see your request.")
-            ok = False        
         return ok
 
-    def coordinates(self):
-        values = {}
-        for name in ("pickup_lat", "pickup_lng", "dropoff_lat", "dropoff_lng"):
-            value = getattr(self, name).data
-            values[name] = None if value is None else value.quantize(Decimal("0.0000001"))
-        return values
 
 class CategoryForm(FlaskForm):
     name = StringField("Name", validators=[DataRequired(), Length(min=2, max=100)])
@@ -243,21 +213,3 @@ class CategoryForm(FlaskForm):
             query = query.filter(ServiceCategory.id != self.category.id)
         if query.first():
             raise ValidationError("A category with that name already exists.")
-
-class GcashQrForm(FlaskForm):
-    qr_image = FileField(
-        "GCash QR image (PNG, JPG or WebP)",
-        validators=[FileAllowed(["png", "jpg", "jpeg", "webp"], "Please choose a PNG, JPG or WebP image.")],
-    )
-    gcash_name = StringField("Name shown on your GCash", validators=[Optional(), Length(max=100)])
-
-class PaymentForm(FlaskForm):
-    method = SelectField(
-        "How will you pay?",
-        choices=[("cash", "Cash to the rider"), ("gcash_qr", "GCash: scan the rider's QR code")],
-        validators=[DataRequired()],
-    )
-    reference = StringField(
-        "GCash reference number (optional)",
-        validators=[Optional(), Length(max=40), Regexp(r"^[A-Za-z0-9 \-]*$", message="Letters, numbers, spaces and dashes only.")],
-    )

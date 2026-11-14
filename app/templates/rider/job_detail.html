@@ -1,150 +1,80 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, status_badge, route %}
 {% block title %}Job #{{ req.id }}{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Job #{{ req.id }} <span class="badge {{ req.status }}">{{ req.status|status_label }}</span></h1>
-
-  <dl class="details">
-    <dt>Service</dt><dd>{{ req.category.name }}</dd>
-    <dt>Instructions</dt><dd>{{ req.instructions }}</dd>
-    {% if req.pickup_address %}<dt>Pickup</dt><dd>{{ req.pickup_address }}</dd>{% endif %}
-    <dt>Deliver to</dt><dd>{{ req.dropoff_address }}</dd>
-    {% if req.item_budget is not none %}<dt>Item budget</dt><dd>{{ "%.2f"|format(req.item_budget) }} PHP</dd>{% endif %}
-    <dt>Your fee</dt><dd>{{ "%.2f"|format(req.service_fee) }} PHP</dd>
-    <dt>Customer</dt><dd>{{ req.customer.full_name }}, {{ req.customer.phone }}</dd>
-  </dl>
-
-  {% if show_payment %}
-  <h2>Payment</h2>
-  <p>
-    Method: <strong>{{ method_labels.get(req.payment_method, 'Not chosen yet') }}</strong><br>
-    Status: <strong>{{ payment_labels[req.payment_status] }}</strong>
-    {% if req.payment_reference %}<br>GCash reference: <strong>{{ req.payment_reference }}</strong>{% endif %}
-  </p>
-  {% if req.payment_status != 'confirmed' %}
-  <div class="actions">
-    <form method="post" action="{{ url_for('rider.update_payment', request_id=req.id) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="action" value="confirm">
-      <button class="btn" type="submit">Payment received</button>
-    </form>
-    {% if req.payment_status == 'reported' %}
-    <form method="post" action="{{ url_for('rider.update_payment', request_id=req.id) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="action" value="not_received">
-      <button class="btn secondary" type="submit">Not received</button>
-    </form>
-    {% endif %}
+<a class="back-link" href="{{ url_for('rider.my_jobs') }}">{{ icon('arrow-left', 15) }} My jobs</a>
+<div class="page-head">
+  <div>
+    <h1>Job #{{ req.id }} {{ status_badge(req.status, req.status|status_label) }}</h1>
+    <p class="muted">{{ req.category.name }}</p>
   </div>
-  <p class="muted">Check your GCash app, or count the cash, before you confirm.</p>
-  {% endif %}
-  {% endif %}
+</div>
 
-  {% if points.pickup or points.dropoff %}
-    <h2>Map</h2>
-    <div id="job-map" class="map" data-points='{{ points|tojson }}'></div>
-    <p id="job-eta" class="muted"></p>
-    <p class="actions">
-      {% if points.pickup %}<a class="btn small secondary" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination={{ points.pickup.lat }},{{ points.pickup.lng }}">Navigate to pickup</a>{% endif %}
-      {% if points.dropoff %}<a class="btn small secondary" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination={{ points.dropoff.lat }},{{ points.dropoff.lng }}">Navigate to delivery</a>{% endif %}
-    </p>
-  {% endif %}
-
+<div class="stack">
   {% if is_active %}
-    <p id="loc-status" class="muted">Starting location sharing...</p>
-  {% endif %}
-
-  {% for s in next_statuses %}
-  <form method="post" action="{{ url_for('rider.update_status', request_id=req.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="status" value="{{ s }}">
-    <button class="btn" type="submit">{{ labels[s] }}</button>
-  </form>
-  {% endfor %}
-
-  {% if can_release %}
-  <details class="release">
-    <summary>Can't continue? Give this job back</summary>
-    <form method="post" action="{{ url_for('rider.release', request_id=req.id) }}"
-          onsubmit="return confirm('Give this job back? It will go to other riders.');">
+  <section class="card">
+    <p id="loc-status" class="live-text">Starting location sharing...</p>
+    {% for s in next_statuses %}
+    <form method="post" action="{{ url_for('rider.update_status', request_id=req.id) }}" data-once class="mt">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="field">
-        <label for="reason">Reason</label>
-        <select name="reason" id="reason" required>
-          <option value="">Select...</option>
-          {% for code, label in release_reasons %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
-        </select>
-      </div>
-      <button class="btn danger" type="submit">Give job back</button>
+      <input type="hidden" name="status" value="{{ s }}">
+      <button class="btn btn-primary btn-lg btn-block" type="submit">{{ labels[s] }}</button>
     </form>
-  </details>
+    {% endfor %}
+  </section>
+  {% elif next_statuses %}
+  <section class="card">
+    {% for s in next_statuses %}
+    <form method="post" action="{{ url_for('rider.update_status', request_id=req.id) }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="status" value="{{ s }}">
+      <button class="btn btn-primary btn-lg btn-block" type="submit">{{ labels[s] }}</button>
+    </form>
+    {% endfor %}
+  </section>
   {% endif %}
 
-  <h2>Status history</h2>
-  <ul class="timeline">
-    {% for h in req.history %}
-      <li><strong>{{ h.status|status_label }}</strong> <span class="muted">{{ h.created_at|ph_time }}{% if h.note %} - {{ h.note }}{% endif %}</span></li>
-    {% endfor %}
-  </ul>
+  <section class="card">
+    <p class="card-section-title">{{ icon('navigation', 14) }} Route</p>
+    {{ route(req.pickup_address, req.dropoff_address) }}
+    <dl class="details">
+      <dt>Service</dt><dd>{{ req.category.name }}</dd>
+      <dt>Instructions</dt><dd>{{ req.instructions }}</dd>
+      {% if req.item_budget is not none %}<dt>Item budget</dt><dd><span class="money">{{ "%.2f"|format(req.item_budget) }} PHP</span></dd>{% endif %}
+      <dt>Your fee</dt><dd><span class="money">{{ "%.2f"|format(req.service_fee) }} PHP</span></dd>
+      <dt>Customer</dt><dd>{{ req.customer.full_name }}, <a href="tel:{{ req.customer.phone }}">{{ req.customer.phone }}</a></dd>
+    </dl>
 
-  <p class="muted"><a href="{{ url_for('rider.my_jobs') }}">Back to my jobs</a></p>
-</section>
+    {% if can_release %}
+    <details class="release">
+      <summary>Can't continue? Give this job back</summary>
+      <form method="post" action="{{ url_for('rider.release', request_id=req.id) }}"
+            onsubmit="return confirm('Give this job back? It will go to other riders.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field">
+          <label for="reason">Reason</label>
+          <div class="input-wrap select-wrap">
+            <select name="reason" id="reason" required>
+              <option value="">Select...</option>
+              {% for code, label in release_reasons %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-danger btn-block" type="submit">Give job back</button>
+      </form>
+    </details>
+    {% endif %}
+  </section>
 
-{% if points.pickup or points.dropoff %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{{ url_for('static', filename='js/route_line.js') }}"></script>
-<script>
-  (function () {
-    if (!window.L) return;
-    const points = JSON.parse(document.getElementById("job-map").dataset.points);
-    const map = L.map("job-map").setView([12.8797, 121.774], 5);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(map);
-    const group = L.featureGroup().addTo(map);
-    [["pickup", "Pickup", "#c77700"], ["dropoff", "Delivery", "#0b7a4b"]].forEach(function (item) {
-      const point = points[item[0]];
-      if (point) {
-        L.circleMarker([point.lat, point.lng], {
-          radius: 10, color: item[2], fillColor: item[2], fillOpacity: 0.8
-        }).addTo(group).bindTooltip(item[1], { permanent: true, direction: "top" });
-      }
-    });
-    map.fitBounds(group.getBounds().pad(0.3), { maxZoom: 16 });
-
-    const status = "{{ req.status }}";
-    const routeLine = new PautosRouteLine(map);
-    const etaEl = document.getElementById("job-eta");
-    let me = null, fitted = false;
-
-    // The location script below calls this each time the phone reports a position
-    window.pautosOnPosition = function (lat, lng) {
-      const pos = [lat, lng];
-      if (!me) {
-        me = L.marker(pos).addTo(map).bindTooltip("You", { permanent: true, direction: "top" });
-      } else {
-        me.setLatLng(pos);
-      }
-      if (!fitted) {
-        map.fitBounds(group.getBounds().extend(pos).pad(0.3), { maxZoom: 16 });
-        fitted = true;
-      }
-      const headingToPickup = status === "accepted";
-      const target = headingToPickup ? points.pickup : points.dropoff;
-      if (!target) return;
-      routeLine.update(pos, [target.lat, target.lng], function (r) {
-        if (!etaEl) return;
-        const where = headingToPickup ? "the pickup" : "the delivery spot";
-        etaEl.textContent = r.minutes
-          ? "About " + r.minutes + " min (" + r.km.toFixed(1) + " km) to " + where + "."
-          : "About " + r.km.toFixed(1) + " km to " + where + " in a straight line.";
-      });
-    };
-  })();
-</script>
-{% endif %}
+  <section class="card">
+    <p class="card-section-title">{{ icon('clock', 14) }} Status history</p>
+    <ul class="timeline">
+      {% for h in req.history %}
+        <li><strong>{{ h.status|status_label }}</strong><span class="when">{{ h.created_at|ph_time }}{% if h.note %} · {{ h.note }}{% endif %}</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
 
 {% if is_active %}
 <script>
@@ -160,11 +90,8 @@
     }
 
     function send(pos) {
-      // Give the map script the new position (draws "You" and the route line)
-      if (window.pautosOnPosition) window.pautosOnPosition(pos.coords.latitude, pos.coords.longitude);
-
       const now = Date.now();
-      if (now - lastSent < 8000) return;
+      if (now - lastSent < 8000) return;  // at most one update every 8 seconds
       lastSent = now;
       fetch(url, {
         method: "POST",

@@ -24,11 +24,11 @@ def register():
     if not isinstance(payload, dict):
         return jerr("Send a JSON body.", 400)
 
-    # Reuse the website's registration rules (phone format, password strength, rider vehicle...)
-    form = RegisterForm(
-        formdata=MultiDict({k: str(v) for k, v in payload.items() if v is not None}),
-        meta={"csrf": False},
-    )
+    data = {k: str(v) for k, v in payload.items() if v is not None}
+    data.setdefault("vehicle_type", "motorcycle")   # PaUtos accepts motorcycle riders only
+
+    # Reuse the website's registration rules (phone format, password strength, rider plate...)
+    form = RegisterForm(formdata=MultiDict(data), meta={"csrf": False})
     if not form.validate():
         return jerr("Please fix the highlighted fields.", 422, fields=form.errors)
 
@@ -39,7 +39,7 @@ def register():
         user.rider_profile = RiderProfile(
             full_name=full_name,
             phone=form.phone_normalized,
-            vehicle_type=form.vehicle_type.data,
+            vehicle_type="motorcycle",
             plate_number=(form.plate_number.data or "").strip().upper() or None,
         )
     else:
@@ -66,7 +66,7 @@ def login():
         return jerr("Email and password are required.", 400)
 
     user = User.query.filter_by(email=email).first()
-    # Always run one hash check so unknown emails take as long as real ones
+    # Always run one hash check, so unknown emails take as long as real ones
     password_ok = check_password_hash(user.password_hash if user else _DUMMY_HASH, password)
     if not (user and password_ok and user.is_active):
         return jerr("Invalid email or password.", 401)

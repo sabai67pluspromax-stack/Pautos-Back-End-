@@ -1,43 +1,63 @@
 {% extends "base.html" %}
-{% from "_lists.html" import pager %}
+{% from "_ui.html" import icon, status_badge, route %}
 {% block title %}My jobs{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>My jobs</h1>
-  <p><strong>Total earnings:</strong> {{ "%.2f"|format(earnings) }} PHP <span class="muted">({{ pagination.total }} completed)</span></p>
-
-  <h2>Current job</h2>
-  {% for j in active %}
-    <p>
-      <a href="{{ url_for('rider.job_detail', request_id=j.id) }}">#{{ j.id }} {{ j.category.name }}</a>
-      <span class="badge {{ j.status }}">{{ j.status|status_label }}</span>
-      <span class="muted">to {{ j.dropoff_address }}</span>
-    </p>
-  {% else %}
-    <p class="muted">No active job. <a href="{{ url_for('rider.available_requests') }}">Find a request</a></p>
-  {% endfor %}
-
-  <h2>Completed</h2>
-  {% if pagination.items %}
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>#</th><th>Service</th><th>Deliver to</th><th>Completed</th><th>Fee</th></tr></thead>
-      <tbody>
-        {% for j in pagination.items %}
-        <tr>
-          <td><a href="{{ url_for('rider.job_detail', request_id=j.id) }}">{{ j.id }}</a></td>
-          <td>{{ j.category.name }}</td>
-          <td>{{ j.dropoff_address }}</td>
-          <td>{{ j.completed_at|ph_time }}</td>
-          <td>{{ "%.2f"|format(j.service_fee) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="page-head">
+  <div>
+    <h1>My jobs</h1>
+    <p class="muted">Your current job and what you've earned.</p>
   </div>
-  {{ pager(pagination) }}
-  {% else %}
-    <p class="muted">Nothing completed yet.</p>
-  {% endif %}
-</section>
+</div>
+
+<div class="stack">
+  <section class="tile featured">
+    <span class="tile-ico">{{ icon('wallet', 20) }}</span>
+    <p class="muted">Total earnings</p>
+    <h3 style="font-size:2rem;margin-top:0"><span class="money">{{ "%.2f"|format(earnings) }}</span> <span class="muted">PHP</span></h3>
+    <p class="muted">{{ completed|length }} completed</p>
+  </section>
+
+  <section>
+    <p class="card-section-title">{{ icon('navigation', 14) }} Current job</p>
+    {% for j in active %}
+      <a class="job job-link" href="{{ url_for('rider.job_detail', request_id=j.id) }}">
+        <div class="job-top">
+          <h3>{{ j.category.name }} <small>#{{ j.id }}</small></h3>
+          {{ status_badge(j.status, j.status|status_label) }}
+        </div>
+        {{ route(None, j.dropoff_address) }}
+        <span class="tile-link" style="padding-top:0">Open job {{ icon('arrow-right', 14) }}</span>
+      </a>
+    {% else %}
+      <div class="card empty" style="padding:1.6rem 1rem">
+        <p>No active job.</p>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('rider.available_requests') }}">Find a request</a>
+      </div>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <p class="card-section-title">{{ icon('check-circle', 14) }} Completed</p>
+    {% if completed %}
+    <div class="table-wrap">
+      <table class="rtable">
+        <thead><tr><th>#</th><th>Service</th><th>Deliver to</th><th>Completed</th><th>Fee</th></tr></thead>
+        <tbody>
+          {% for j in completed %}
+          <tr>
+            <td class="cell-main" data-label="#"><span><a class="num-id" href="{{ url_for('rider.job_detail', request_id=j.id) }}">#{{ j.id }}</a><span class="only-m"> · {{ j.category.name }}</span></span></td>
+            <td class="hide-m" data-label="Service">{{ j.category.name }}</td>
+            <td data-label="Deliver to">{{ j.dropoff_address }}</td>
+            <td data-label="Completed">{{ j.completed_at|ph_time }}</td>
+            <td data-label="Fee"><span class="money">{{ "%.2f"|format(j.service_fee) }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="muted">Nothing completed yet.</p>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

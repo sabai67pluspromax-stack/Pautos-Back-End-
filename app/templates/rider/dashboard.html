@@ -1,29 +1,66 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, initials, status_badge %}
 {% block title %}Rider dashboard{% endblock %}
 {% block content %}
 {% set rp = current_user.rider_profile %}
-<section class="card">
-  <h1>Hi, {{ current_user.full_name }}</h1>
-  <p class="muted">Verification status: {{ rp.verification_status }}</p>
+{% set vs = rp.verification_status if rp else 'pending' %}
+{% set vs_cls = {'pending': 'warn', 'approved': 'ok', 'rejected': 'bad'}.get(vs, 'warn') %}
+{% set vehicles = {'motorcycle': 'Motorcycle', 'bicycle': 'Bicycle', 'car': 'Car', 'walker': 'On foot'} %}
+<section class="dash-head">
+  <div class="avatar avatar-lg">{{ initials(current_user.full_name) }}</div>
+  <div>
+    <h1>Hi, {{ current_user.full_name.split()[0] if current_user.full_name else 'rider' }}</h1>
+    <p class="muted">Rider dashboard</p>
+  </div>
+  <span class="badge badge-{{ vs_cls }} dash-badge">{{ icon('shield', 14) }} Verification: {{ vs|capitalize }}</span>
+</section>
 
-  <p>
-    Availability:
-    <span class="badge {{ rp.availability_status }}">{{ rp.availability_status|status_label }}</span>
-  </p>
-  {% if rp.availability_status == 'busy' %}
-    <p class="muted">You're on a job. You'll be available again once you complete it.</p>
-  {% else %}
-  <form method="post" action="{{ url_for('rider.update_availability') }}">
+<section class="card status-panel" style="margin-bottom:16px">
+  <div class="sp-main">
+    <h2><span class="status-dot{% if rp.availability_status == 'available' %} on{% elif rp.availability_status == 'busy' %} busy{% endif %}"></span>You're {{ rp.availability_status|status_label|lower }}</h2>
+    {% if rp.availability_status == 'busy' %}
+      <p class="muted">You're on a job. You'll be available again once you complete it.</p>
+    {% elif rp.availability_status == 'available' %}
+      <p class="muted">You can accept new requests.</p>
+    {% else %}
+      <p class="muted">Go online to start accepting requests.</p>
+    {% endif %}
+  </div>
+  {% if rp.availability_status != 'busy' %}
+  <form method="post" action="{{ url_for('rider.update_availability') }}" data-once>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="availability" value="{{ 'offline' if rp.availability_status == 'available' else 'available' }}">
-    <button class="btn secondary" type="submit">{{ 'Go offline' if rp.availability_status == 'available' else 'Go online' }}</button>
+    {% if rp.availability_status == 'available' %}
+      <button class="btn btn-ghost" type="submit">{{ icon('power', 16) }} Go offline</button>
+    {% else %}
+      <button class="btn btn-primary" type="submit">{{ icon('power', 16) }} Go online</button>
+    {% endif %}
   </form>
   {% endif %}
+</section>
 
-  <p>
-    <a class="btn" href="{{ url_for('rider.available_requests') }}">Available requests</a>
-    <a class="btn secondary" href="{{ url_for('rider.my_jobs') }}">My jobs and earnings</a>
-    <a class="btn secondary" href="{{ url_for('rider.gcash_settings') }}">My GCash QR</a>
-  </p>
+<section class="tiles">
+  <a class="tile featured" href="{{ url_for('rider.available_requests') }}">
+    <span class="tile-ico">{{ icon('inbox', 20) }}</span>
+    <h3>Available requests</h3>
+    <p class="muted">Errands you can accept right now.</p>
+    <span class="tile-link">Browse requests {{ icon('arrow-right', 14) }}</span>
+  </a>
+  <a class="tile" href="{{ url_for('rider.my_jobs') }}">
+    <span class="tile-ico">{{ icon('wallet', 20) }}</span>
+    <h3>My jobs &amp; earnings</h3>
+    <p class="muted">Your current job and completed deliveries.</p>
+    <span class="tile-link">Open jobs {{ icon('arrow-right', 14) }}</span>
+  </a>
+  <a class="tile" href="{{ url_for('profile.edit_profile') }}">
+    <span class="tile-ico">{{ icon('truck', 20) }}</span>
+    <h3>Your vehicle</h3>
+    {% if rp and rp.vehicle_type %}
+      <p>{{ vehicles.get(rp.vehicle_type, rp.vehicle_type) }}{% if rp.plate_number %} &middot; {{ rp.plate_number }}{% endif %}</p>
+    {% else %}
+      <p class="muted">No vehicle on file.</p>
+    {% endif %}
+    <span class="tile-link">Update in profile {{ icon('arrow-right', 14) }}</span>
+  </a>
 </section>
 {% endblock %}

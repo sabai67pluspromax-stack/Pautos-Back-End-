@@ -1,7 +1,53 @@
-{% macro field(f, type="text", autocomplete=None) %}
-<div class="field">
-  {{ f.label }}
-  {{ f(autocomplete=autocomplete) }}
-  {% for err in f.errors %}<small class="error-text">{{ err }}</small>{% endfor %}
+{% from "_ui.html" import icon %}
+{#
+  Renders one WTForms field in the PaUtos style.
+  Backend contract is unchanged: same field objects, ids and names; this macro only
+  controls markup. Optional args: placeholder, hint, strength (password meter), inputmode.
+#}
+{% macro field(f, type="text", autocomplete=None, placeholder=None, hint=None, strength=False, inputmode=None) %}
+{%- set icons = {
+  'email': 'mail', 'phone': 'phone', 'full_name': 'user', 'role': 'users',
+  'password': 'lock', 'confirm_password': 'lock', 'current_password': 'lock', 'new_password': 'lock',
+  'vehicle_type': 'truck', 'plate_number': 'hash', 'default_address': 'home',
+  'category_id': 'tag', 'pickup_address': 'map-pin', 'dropoff_address': 'home', 'item_budget': 'wallet',
+  'name': 'tag', 'description': 'file-text', 'base_fee': 'wallet', 'sort_order': 'list'
+} -%}
+{%- set ic = icons.get(f.name) -%}
+{%- set is_pw = f.type == 'PasswordField' -%}
+{%- set is_select = f.type == 'SelectField' -%}
+{%- set is_area = f.type == 'TextAreaField' -%}
+{%- set kw = {} -%}
+{%- if autocomplete %}{% set _ = kw.update({'autocomplete': autocomplete}) %}{% endif -%}
+{%- if placeholder %}{% set _ = kw.update({'placeholder': placeholder}) %}{% endif -%}
+{%- if inputmode %}{% set _ = kw.update({'inputmode': inputmode}) %}{% endif -%}
+{%- if strength %}{% set _ = kw.update({'data-strength': '1'}) %}{% endif -%}
+{%- if f.errors %}{% set _ = kw.update({'class': 'is-invalid', 'aria-invalid': 'true'}) %}{% endif -%}
+<div class="field{% if f.errors %} has-error{% endif %}">
+  <label for="{{ f.id }}">{{ f.label.text }}{% if f.flags.required %}<span class="req" aria-hidden="true">*</span>{% endif %}</label>
+  {% if is_pw -%}
+  <div class="input-wrap pw-wrap">
+    {% if ic %}<span class="input-icon">{{ icon(ic, 16) }}</span>{% endif %}
+    {{ f(**kw) }}
+    <button type="button" class="pw-toggle" aria-label="Show password" aria-pressed="false">
+      <span class="eye-on">{{ icon('eye', 18) }}</span><span class="eye-off">{{ icon('eye-off', 18) }}</span>
+    </button>
+  </div>
+  {%- elif is_area -%}
+  {{ f(**kw) }}
+  {%- else -%}
+  <div class="input-wrap{% if is_select %} select-wrap{% endif %}">
+    {% if ic %}<span class="input-icon">{{ icon(ic, 16) }}</span>{% endif %}
+    {{ f(**kw) }}
+  </div>
+  {%- endif %}
+  {% if strength -%}
+  <div class="pw-strength" aria-hidden="true">
+    <div class="pw-bars"><div class="pw-bar"></div><div class="pw-bar"></div><div class="pw-bar"></div><div class="pw-bar"></div></div>
+    <span class="pw-label"></span>
+  </div>
+  {%- endif %}
+  {% if hint %}<small class="field-hint">{{ hint }}</small>{% endif %}
+  {% for err in f.errors %}<small class="field-error server">{{ icon('alert', 13) }}<span>{{ err }}</span></small>{% endfor %}
+  <small class="field-error js-error" hidden></small>
 </div>
 {% endmacro %}

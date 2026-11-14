@@ -9,7 +9,7 @@ from werkzeug.exceptions import HTTPException
 from ..extensions import db
 from ..models import ApiToken, User, utcnow
 
-bp = Blueprint("api", __name__, url_prefix="/api/v1")
+bp = Blueprint("api", _name_, url_prefix="/api/v1")
 
 TOKEN_DAYS = 30
 
@@ -32,8 +32,8 @@ def _aware(dt):
 
 
 def issue_token(user, device=None):
-    """Create a login token for this user and return the raw value (shown to the app only once)."""
-    ApiToken.query.filter(ApiToken.expires_at < utcnow()).delete()   # tidy up old ones
+    """Create a login token and return the raw value (the app sees it only once)."""
+    ApiToken.query.filter(ApiToken.expires_at < utcnow()).delete()   # tidy up expired ones
     raw = secrets.token_urlsafe(32)
     db.session.add(
         ApiToken(
@@ -48,7 +48,6 @@ def issue_token(user, device=None):
 
 
 def user_for_token(raw):
-    """(user, token_row) for a valid token, else (None, None)."""
     row = ApiToken.query.filter_by(token_hash=_hash(raw)).first()
     now = utcnow()
     if row is None or _aware(row.expires_at) < now:
@@ -63,7 +62,7 @@ def user_for_token(raw):
 
 
 def api_login_required(*roles):
-    """Require 'Authorization: Bearer <token>', optionally for specific roles only."""
+    """Needs 'Authorization: Bearer <token>', optionally for specific roles only."""
 
     def wrap(fn):
         @wraps(fn)

@@ -1,11 +1,37 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon %}
 {% block content %}
-<section class="card hero">
-  <h1>Anything you need, delivered.</h1>
-  <p>Water, groceries, bill payments, and all kinds of errands. A rider handles it for you.</p>
-  <p>
-    <a class="btn" href="{{ url_for('auth.register') }}">Get started</a>
-    <a class="btn secondary" href="{{ url_for('auth.login') }}">Log in</a>
-  </p>
+<section class="hero">
+  <span class="eyebrow">{{ icon('zap', 14) }} Rider-powered errands</span>
+  <h1>Anything you need, <span class="accent">delivered.</span></h1>
+  <p class="lead">Water, groceries, bill payments, and all kinds of errands. A rider handles it for you.</p>
+  <div class="hero-cta">
+    <a class="btn btn-primary btn-lg" href="{{ url_for('auth.register') }}">Get started {{ icon('arrow-right', 18) }}</a>
+    <a class="btn btn-ghost btn-lg" href="{{ url_for('auth.login') }}">Log in</a>
+  </div>
+  <ul class="chips" aria-label="What we can do">
+    <li>{{ icon('droplet', 15) }} Water</li>
+    <li>{{ icon('shopping-bag', 15) }} Groceries</li>
+    <li>{{ icon('file-text', 15) }} Bill payments</li>
+    <li>{{ icon('zap', 15) }} Any errand</li>
+  </ul>
+</section>
+
+<section class="how" aria-label="How it works">
+  <article class="how-step">
+    <span class="how-num">1</span>
+    <h3>Post an errand</h3>
+    <p>Tell us what you need and where it should go.</p>
+  </article>
+  <article class="how-step">
+    <span class="how-num">2</span>
+    <h3>A rider takes it</h3>
+    <p>A rider accepts your request and gets moving.</p>
+  </article>
+  <article class="how-step">
+    <span class="how-num">3</span>
+    <h3>Track it to your door</h3>
+    <p>Follow progress until it's delivered.</p>
+  </article>
 </section>
 {% endblock %}

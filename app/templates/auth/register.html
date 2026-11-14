@@ -1,33 +1,65 @@
 {% extends "base.html" %}
 {% from "auth/_field.html" import field %}
+{% from "_ui.html" import icon %}
 {% block title %}Register{% endblock %}
 {% block content %}
-<section class="card narrow">
-  <h1>Create an account</h1>
-  <form method="post" novalidate>
-    {{ form.hidden_tag() }}
-    {{ field(form.role) }}
-    {{ field(form.full_name, autocomplete="name") }}
-    {{ field(form.email, autocomplete="email") }}
-    {{ field(form.phone, autocomplete="tel") }}
+{#- Which step should be showing? Jump to the first step that has a server-side error. -#}
+{% set s1 = form.role.errors or form.full_name.errors %}
+{% set s2 = form.email.errors or form.phone.errors or form.vehicle_type.errors or form.plate_number.errors %}
+{% set s3 = form.password.errors or form.confirm_password.errors %}
+{% set start = 0 if s1 else (1 if s2 else (2 if s3 else 0)) %}
+{% set titles = ['Account', 'Contact', 'Security'] %}
 
-    <div id="rider-fields" hidden>
-      {{ field(form.vehicle_type) }}
-      {{ field(form.plate_number) }}
+<section class="page-narrow">
+  <div class="auth-head">
+    <span class="auth-ico">{{ icon('package', 22) }}</span>
+    <h1>Create an account</h1>
+    <p class="muted">Join PaUtos as a customer or a rider.</p>
+  </div>
+
+  <ol class="steps" id="reg-steps" aria-label="Registration progress">
+    {% for t in titles %}
+    <li class="step{% if loop.index0 == start %} active{% elif loop.index0 < start %} done{% endif %}"{% if loop.index0 == start %} aria-current="step"{% endif %}>
+      <span class="step-num"><span class="num">{{ loop.index }}</span><span class="chk">{{ icon('check', 14) }}</span></span>
+      <span class="step-label">{{ t }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <form method="post" novalidate id="reg-form" class="card{% if start == 0 %} on-first{% endif %}{% if start == 2 %} on-last{% endif %}" data-wizard>
+    {{ form.hidden_tag() }}
+
+    <div class="form-step{% if start == 0 %} active{% endif %}">
+      <p class="card-section-title">About you</p>
+      {{ field(form.role) }}
+      {{ field(form.full_name, autocomplete="name", placeholder="Juan Dela Cruz") }}
     </div>
 
-    {{ field(form.password, autocomplete="new-password") }}
-    {{ field(form.confirm_password, autocomplete="new-password") }}
-    <button class="btn" type="submit">Register</button>
-  </form>
-  <p class="muted">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
-</section>
+    <div class="form-step{% if start == 1 %} active{% endif %}">
+      <p class="card-section-title">Contact details</p>
+      {{ field(form.email, autocomplete="email", placeholder="juan@example.com") }}
+      {{ field(form.phone, autocomplete="tel", placeholder="09171234567", hint="Philippine mobile number, e.g. 09171234567") }}
 
-<script>
-  const roleSelect = document.getElementById("role");
-  const riderFields = document.getElementById("rider-fields");
-  function toggleRider() { riderFields.hidden = roleSelect.value !== "rider"; }
-  roleSelect.addEventListener("change", toggleRider);
-  toggleRider();
-</script>
+      <div id="rider-fields" hidden>
+        {{ field(form.vehicle_type) }}
+        {{ field(form.plate_number, placeholder="ABC 1234") }}
+      </div>
+    </div>
+
+    <div class="form-step{% if start == 2 %} active{% endif %}">
+      <p class="card-section-title">Create a password</p>
+      {{ field(form.password, autocomplete="new-password", strength=True, hint="At least 8 characters, with a letter and a number.") }}
+      {{ field(form.confirm_password, autocomplete="new-password") }}
+    </div>
+
+    <div class="action-bar">
+      <button type="button" class="btn btn-ghost wizard-only" id="btn-back">{{ icon('arrow-left', 16) }} Back</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn btn-primary wizard-only" id="btn-next">Continue {{ icon('arrow-right', 16) }}</button>
+      <button type="submit" class="btn btn-primary" id="btn-submit">Create account</button>
+    </div>
+  </form>
+
+  <p class="muted center">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+</section>
 {% endblock %}

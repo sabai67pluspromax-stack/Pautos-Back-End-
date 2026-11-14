@@ -1,38 +1,41 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, status_badge %}
 {% block title %}Categories{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Service categories</h1>
-  <p>
-    <a class="btn" href="{{ url_for('admin.new_category') }}">New category</a>
-    <a href="{{ url_for('admin.dashboard') }}">Back to admin</a>
-  </p>
+<a class="back-link" href="{{ url_for('admin.dashboard') }}">{{ icon('arrow-left', 15) }} Admin</a>
+<div class="page-head">
+  <div><h1>Service categories</h1><p class="muted">What customers can order, and the fee for each.</p></div>
+  <div class="head-actions"><a class="btn btn-primary" href="{{ url_for('admin.new_category') }}">{{ icon('plus', 16) }} New category</a></div>
+</div>
 
+<section class="card">
   <div class="table-wrap">
-    <table>
+    <table class="rtable">
       <thead>
         <tr><th>Order</th><th>Name</th><th>Fee (PHP)</th><th>Needs budget</th><th>Status</th><th></th></tr>
       </thead>
       <tbody>
         {% for c in categories %}
         <tr>
-          <td>{{ c.sort_order }}</td>
-          <td>{{ c.name }}<br><span class="muted">{{ c.description or "" }}</span></td>
-          <td>{{ "%.2f"|format(c.base_fee) }}</td>
-          <td>{{ "Yes" if c.requires_purchase else "No" }}</td>
-          <td><span class="badge {{ 'approved' if c.is_active else 'rejected' }}">{{ "Active" if c.is_active else "Hidden" }}</span></td>
-          <td class="row-actions">
-            <a class="btn small secondary" href="{{ url_for('admin.edit_category', category_id=c.id) }}">Edit</a>
-            <form method="post" action="{{ url_for('admin.toggle_category', category_id=c.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn small secondary" type="submit">{{ "Hide" if c.is_active else "Show" }}</button>
-            </form>
+          <td class="hide-m" data-label="Order">{{ c.sort_order }}</td>
+          <td class="cell-main" data-label="Name"><span>{{ c.name }}{% if c.description %}<br><span class="muted" style="font-weight:400">{{ c.description }}</span>{% endif %}</span></td>
+          <td data-label="Fee (PHP)"><span class="money">{{ "%.2f"|format(c.base_fee) }}</span></td>
+          <td data-label="Needs budget">{{ "Yes" if c.requires_purchase else "No" }}</td>
+          <td data-label="Status">{{ status_badge('approved' if c.is_active else 'rejected', "Active" if c.is_active else "Hidden") }}</td>
+          <td class="cell-actions">
+            <div class="row-actions">
+              <a class="btn btn-sm btn-ghost" href="{{ url_for('admin.edit_category', category_id=c.id) }}">{{ icon('edit', 14) }} Edit</a>
+              <form method="post" action="{{ url_for('admin.toggle_category', category_id=c.id) }}" data-once>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-ghost" type="submit">{{ "Hide" if c.is_active else "Show" }}</button>
+              </form>
+            </div>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <p class="muted">Hiding a category removes it from the request form, but existing requests keep working.</p>
+  <p class="muted" style="margin-top:14px">Hiding a category removes it from the request form, but existing requests keep working.</p>
 </section>
 {% endblock %}

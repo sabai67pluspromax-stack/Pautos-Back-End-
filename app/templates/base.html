@@ -1,54 +1,116 @@
+{% from "_ui.html" import icon, initials -%}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Errand Service{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e1e2e4">
+  <meta name="color-scheme" content="light">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>{% block title %}Errand Service{% endblock %} · PaUtos</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23ff7f22'/%3E%3Cpath d='M9 12l7-4 7 4v8l-7 4-7-4z' fill='none' stroke='%231f1005' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script>document.documentElement.classList.add('js');try{if(localStorage.getItem('pautos-theme')==='dark'){document.querySelector('meta[name="theme-color"]').setAttribute('content','#1b1a20');document.querySelector('meta[name="color-scheme"]').setAttribute('content','dark');}else{document.documentElement.setAttribute('data-theme','light');}}catch(e){document.documentElement.setAttribute('data-theme','light');}</script>
 </head>
-<body>
+{#- Navigation per role: (label, icon, endpoint, [active endpoint prefixes]) -#}
+{% set ep = request.endpoint or '' %}
+{% set role = current_user.role if current_user.is_authenticated else None %}
+{% if role == 'customer' %}
+  {% set items = [
+    ('Home', 'home', 'main.customer_dashboard', ('main.customer_dashboard',)),
+    ('New', 'plus', 'customer.new_request', ('customer.new_request',)),
+    ('Requests', 'list', 'customer.request_list', ('customer.request_list', 'customer.request_detail')),
+    ('Profile', 'user', 'profile.edit_profile', ('profile.',)),
+  ] %}
+{% elif role == 'rider' %}
+  {% set items = [
+    ('Home', 'home', 'main.rider_dashboard', ('main.rider_dashboard',)),
+    ('Available', 'inbox', 'rider.available_requests', ('rider.available_requests',)),
+    ('My jobs', 'briefcase', 'rider.my_jobs', ('rider.my_jobs', 'rider.job_detail')),
+    ('Profile', 'user', 'profile.edit_profile', ('profile.',)),
+  ] %}
+{% elif role == 'admin' %}
+  {% set items = [
+    ('Overview', 'grid', 'admin.dashboard', ('admin.dashboard',)),
+    ('Riders', 'truck', 'admin.riders', ('admin.riders',)),
+    ('Requests', 'list', 'admin.requests_overview', ('admin.requests_overview', 'admin.request_detail')),
+    ('Categories', 'tag', 'admin.categories', ('admin.categories', 'admin.new_category', 'admin.edit_category')),
+  ] %}
+{% else %}
+  {% set items = [] %}
+{% endif %}
+<body class="{% if items %}has-tabbar{% endif %}">
   <header class="nav">
-    <a class="brand" href="{{ url_for('main.index') }}">PaUtos</a>
-    <nav>
+    <div class="nav-inner">
+      <a class="brand" href="{{ url_for('main.index') }}">
+        <span class="brand-mark">{{ icon('package', 18) }}</span>
+        <span class="brand-name">PaUtos</span>
+      </a>
+
       {% if current_user.is_authenticated %}
-                {% if current_user.role == 'admin' %}
-          <a href="{{ url_for('admin.dashboard') }}">Admin</a>
-        {% else %}
-          <a href="{{ url_for('profile.edit_profile') }}">Profile</a>
-        {% endif %}
-        <span class="who">{{ current_user.full_name }} ({{ current_user.role }})</span>
+      <nav class="nav-links" aria-label="Main">
+        {% for label, ic, endpoint, pfx in items %}
+          <a class="nav-link{% if ep.startswith(pfx) %} active{% endif %}" href="{{ url_for(endpoint) }}">{{ icon(ic, 15) }}<span>{{ label }}</span></a>
+        {% endfor %}
+        <button type="button" class="icon-btn theme-toggle" aria-label="Switch to light mode" title="Switch theme"><span class="t-sun">{{ icon('sun', 18) }}</span><span class="t-moon">{{ icon('moon', 18) }}</span></button>
+        <span class="who" title="{{ current_user.full_name }}">
+          <span class="who-name">{{ current_user.full_name }}</span>
+          <span class="pill">{{ current_user.role }}</span>
+        </span>
         <form method="post" action="{{ url_for('auth.logout') }}" class="inline">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="link">Log out</button>
+          <button type="submit" class="btn btn-ghost btn-sm">{{ icon('log-out', 15) }} Log out</button>
         </form>
+      </nav>
+      {# phones: slim top bar with name + logout; main navigation lives in the bottom tab bar #}
+      <div class="nav-actions-m">
+        <button type="button" class="icon-btn theme-toggle" aria-label="Switch to light mode" title="Switch theme"><span class="t-sun">{{ icon('sun', 18) }}</span><span class="t-moon">{{ icon('moon', 18) }}</span></button>
+        <span class="pill">{{ current_user.role }}</span>
+        <form method="post" action="{{ url_for('auth.logout') }}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="icon-btn" aria-label="Log out">{{ icon('log-out', 18) }}</button>
+        </form>
+      </div>
       {% else %}
-        <a href="{{ url_for('auth.login') }}">Log in</a>
-        <a href="{{ url_for('auth.register') }}">Register</a>
+      <nav class="nav-links" aria-label="Main">
+        <a class="nav-link{% if ep == 'auth.login' %} active{% endif %}" href="{{ url_for('auth.login') }}">Log in</a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('auth.register') }}">Register</a>
+        <button type="button" class="icon-btn theme-toggle" aria-label="Switch to dark mode" title="Switch theme"><span class="t-sun">{{ icon('sun', 18) }}</span><span class="t-moon">{{ icon('moon', 18) }}</span></button>
+      </nav>
       {% endif %}
-    </nav>
+    </div>
   </header>
+
   <main class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
-        <div class="flash {{ category }}">{{ message }}</div>
+        <div class="flash {{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">
+          <span class="flash-icon">{{ icon('check-circle' if category == 'success' else ('alert' if category == 'error' else 'info'), 18) }}</span>
+          <span class="flash-text">{{ message }}</span>
+          <button type="button" class="flash-close" aria-label="Dismiss">{{ icon('x', 16) }}</button>
+        </div>
       {% endfor %}
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
-  {% if current_user.is_authenticated and current_user.role == 'rider' %}
-  {% set rp = current_user.rider_profile %}
-  {% if rp and rp.availability_status != 'offline' and request.endpoint != 'rider.job_detail' %}
-    <div id="presence" hidden data-url="{{ url_for('rider.update_location') }}" data-csrf="{{ csrf_token() }}"></div>
-    <script src="{{ url_for('static', filename='js/rider_presence.js') }}"></script>
+
+  {% if items %}
+  <nav class="tabbar" aria-label="Main">
+    <div class="tabbar-inner">
+      {% for label, ic, endpoint, pfx in items %}
+        <a class="tab{% if ep.startswith(pfx) %} active{% endif %}" href="{{ url_for(endpoint) }}"{% if ep.startswith(pfx) %} aria-current="page"{% endif %}>
+          {{ icon(ic, 21) }}<span>{{ label }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </nav>
   {% endif %}
-  {% if rp and rp.availability_status == 'available' and rp.verification_status == 'approved' %}
-    <div id="feed" hidden
-         data-url="{{ url_for('rider.requests_feed') }}"
-         data-accept="{{ url_for('rider.accept', request_id=0) }}"
-         data-csrf="{{ csrf_token() }}"
-         data-list-page="{{ 1 if request.endpoint == 'rider.available_requests' else 0 }}"></div>
-    <script src="{{ url_for('static', filename='js/rider_feed.js') }}"></script>
-  {% endif %}
-{% endif %}
+
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </body>
 </html>

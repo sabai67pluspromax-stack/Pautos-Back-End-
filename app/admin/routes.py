@@ -1,15 +1,12 @@
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user
-from sqlalchemy import case
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from ..constants import (
     ADMIN_CANCELLABLE,
     ADMIN_REOPENABLE,
-    FILTER_STATUSES,
     OPEN_STATUSES,
-    PAGE_SIZE,
     ROLE_ADMIN,
     VERIFICATION_APPROVED,
     VERIFICATION_ORDER,
@@ -40,16 +37,9 @@ def dashboard():
 @bp.route("/riders")
 @role_required(ROLE_ADMIN)
 def riders():
-    stmt = (
-        db.select(RiderProfile)
-        .options(joinedload(RiderProfile.user))
-        .order_by(
-            case(VERIFICATION_ORDER, value=RiderProfile.verification_status, else_=9),
-            RiderProfile.id.desc(),
-        )
-    )
-    pagination = db.paginate(stmt, per_page=PAGE_SIZE, error_out=False)
-    return render_template("admin/riders.html", pagination=pagination)
+    items = RiderProfile.query.options(joinedload(RiderProfile.user)).all()
+    items.sort(key=lambda r: (VERIFICATION_ORDER.get(r.verification_status, 9), -r.id))
+    return render_template("admin/riders.html", riders=items)
 
 
 @bp.route("/riders/<int:rider_id>/status", methods=["POST"])
@@ -108,7 +98,7 @@ def edit_category(category_id):
     if form.validate_on_submit():
         category.name = form.name.data.strip()
         category.description = (form.description.data or "").strip() or None
-        category.base_fee = form.base_fee.data
+        category.base_fee = form.base_fee.data  # only affects NEW requests; old ones keep their fee
         category.requires_purchase = form.requires_purchase.data
         category.sort_order = form.sort_order.data or 0
         db.session.commit()
@@ -128,29 +118,20 @@ def toggle_category(category_id):
     flash(f"{category.name} is now {'active' if category.is_active else 'hidden from customers'}.", "info")
     return redirect(url_for("admin.categories"))
 
-
 @bp.route("/requests")
 @role_required(ROLE_ADMIN)
 def requests_overview():
-    current_status = request.args.get("status", "")
-    if current_status not in FILTER_STATUSES:
-        current_status = ""
-    stmt = db.select(ServiceRequest).options(
-        joinedload(ServiceRequest.customer),
-        joinedload(ServiceRequest.rider),
-        joinedload(ServiceRequest.category),
+    items = (
+        ServiceRequest.query.options(
+            joinedload(ServiceRequest.customer),
+            joinedload(ServiceRequest.rider),
+            joinedload(ServiceRequest.category),
+        )
+        .order_by(ServiceRequest.created_at.desc(), ServiceRequest.id.desc())
+        .limit(200)
+        .all()
     )
-    if current_status:
-        stmt = stmt.where(ServiceRequest.status == current_status)
-    stmt = stmt.order_by(ServiceRequest.created_at.desc(), ServiceRequest.id.desc())
-    pagination = db.paginate(stmt, per_page=PAGE_SIZE, error_out=False)
-    return render_template(
-        "admin/requests.html",
-        pagination=pagination,
-        statuses=FILTER_STATUSES,
-        current_status=current_status,
-    )
-
+    return render_template("admin/requests.html", requests=items)
 
 @bp.route("/requests/<int:request_id>")
 @role_required(ROLE_ADMIN)

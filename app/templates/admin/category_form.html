@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "auth/_field.html" import field %}
+{% from "_ui.html" import icon %}
+{% block title %}{{ "Edit category" if editing else "New category" }}{% endblock %}
+{% block content %}
+<section class="page-narrow">
+  <a class="back-link" href="{{ url_for('admin.categories') }}">{{ icon('arrow-left', 15) }} Categories</a>
+  <div class="page-head"><div><h1>{{ "Edit category" if editing else "New category" }}</h1></div></div>
+
+  <form method="post" novalidate class="card" data-once>
+    {{ form.hidden_tag() }}
+    {{ field(form.name) }}
+    {{ field(form.description) }}
+    {{ field(form.base_fee, inputmode="decimal") }}
+    <label class="check">{{ form.requires_purchase() }} <span>{{ form.requires_purchase.label.text }}</span></label>
+    {{ field(form.sort_order, inputmode="numeric") }}
+    {% if editing %}
+      <div class="note">{{ icon('info', 16) }}<span>Changing the fee only affects new requests. Existing requests keep the fee they were created with.</span></div>
+    {% endif %}
+    <button class="btn btn-primary btn-block" type="submit">Save</button>
+  </form>
+</section>
+{% endblock %}

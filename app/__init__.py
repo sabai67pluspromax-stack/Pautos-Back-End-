@@ -1,4 +1,3 @@
-import os
 from datetime import timedelta, timezone
 
 from flask import Flask
@@ -30,28 +29,23 @@ def create_app(config_class=Config):
     from .profile.routes import bp as profile_bp
     from .rider.routes import bp as rider_bp
     from .seed import seed_categories
-    from werkzeug.middleware.proxy_fix import ProxyFix
     from .api import bp as api_bp
 
-    app.register_blueprint(api_bp)
-    csrf.exempt(api_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(customer_bp)
+    app.register_blueprint(api_bp)
     app.register_blueprint(rider_bp)
     app.register_blueprint(admin_bp)
     register_cli(app)
+    csrf.exempt(api_bp)
 
     if app.config["AUTO_CREATE_DB"]:  # tests only; real databases come from `flask db upgrade`
         with app.app_context():
             db.create_all()
-            seed_categories()    
+            seed_categories()
 
-    if app.config.get("TRUST_PROXY"):
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-    app.config.setdefault("UPLOAD_FOLDER", os.path.join(app.instance_path, "uploads"))
-    app.config.setdefault("MAX_CONTENT_LENGTH", 3 * 1024 * 1024)
     @app.template_filter("ph_time")
     def ph_time(dt):
         if dt is None:
@@ -69,9 +63,6 @@ def create_app(config_class=Config):
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        if app.config["SESSION_COOKIE_SECURE"]:
-            resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
-            resp.headers.setdefault("Permissions-Policy", "geolocation=(self)")
         return resp
 
     return app

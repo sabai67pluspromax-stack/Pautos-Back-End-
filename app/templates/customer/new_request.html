@@ -1,47 +1,38 @@
 {% extends "base.html" %}
 {% from "auth/_field.html" import field %}
+{% from "_ui.html" import icon %}
 {% block title %}New request{% endblock %}
 {% block content %}
-<section class="card narrow">
-  <h1>New request</h1>
+<section class="page-narrow">
+  <a class="back-link" href="{{ url_for('main.customer_dashboard') }}">{{ icon('arrow-left', 15) }} Back</a>
+  <div class="page-head">
+    <div>
+      <h1>New request</h1>
+      <p class="muted">Tell the rider what you need and where it goes.</p>
+    </div>
+  </div>
 
-  <form method="post" novalidate>
+  <form method="post" novalidate class="card" data-once>
     {{ form.hidden_tag() }}
+
+    <p class="card-section-title">{{ icon('tag', 14) }} What do you need?</p>
     {{ field(form.category_id) }}
     <ul class="cat-hints">
       {% for c in form.categories %}
-        <li><strong>{{ c.name }}</strong> ({{ "%.2f"|format(c.base_fee) }} PHP service fee): {{ c.description }}</li>
+        <li data-id="{{ c.id }}" data-purchase="{{ 1 if c.requires_purchase else 0 }}"><strong>{{ c.name }}</strong> <span class="fee">{{ "%.2f"|format(c.base_fee) }} PHP fee</span><br>{{ c.description }}</li>
       {% endfor %}
     </ul>
-    {{ field(form.instructions) }}
-    {{ field(form.pickup_address) }}
-    {{ field(form.dropoff_address, autocomplete="street-address") }}
+    {{ field(form.instructions, placeholder="e.g. 2 gallons of purified water, 3rd floor, call on arrival") }}
 
-    <h2>Pin it on the map <span class="muted">(optional, helps the rider find the place)</span></h2>
-    <div class="pin-controls">
-      <label class="check"><input type="radio" name="pin_target" value="dropoff" checked> Delivery pin</label>
-      <label class="check"><input type="radio" name="pin_target" value="pickup"> Pickup pin</label>
-      <button class="btn small secondary" type="button" id="find-address">Find typed address</button>
-      <button class="btn small secondary" type="button" id="use-my-location">Use my location</button>
-      <button class="btn small secondary" type="button" id="clear-pin">Remove pin</button>
-    </div>
-    <p id="picker-msg" class="muted">Choose which pin you are placing, then tap the map or press Find.</p>
-    <div id="map-picker" class="map"></div>
-    {{ form.pickup_lat(type="hidden") }}
-    {{ form.pickup_lng(type="hidden") }}
-    {{ form.dropoff_lat(type="hidden") }}
-    {{ form.dropoff_lng(type="hidden") }}
-    {% for f in (form.pickup_lat, form.pickup_lng, form.dropoff_lat, form.dropoff_lng) %}
-      {% for err in f.errors %}<small class="error-text">{{ err }}</small>{% endfor %}
-    {% endfor %}
+    <p class="card-section-title">{{ icon('map-pin', 14) }} Where</p>
+    {{ field(form.pickup_address, placeholder="Store, refill station or outlet") }}
+    {{ field(form.dropoff_address, autocomplete="street-address", placeholder="House no., street, barangay") }}
 
-    {{ field(form.item_budget) }}
-    <p class="muted">The service fee is set by the category. You pay the rider the item or bill cost on top of it.</p>
-    <button class="btn" type="submit">Submit request</button>
+    <p class="card-section-title">{{ icon('wallet', 14) }} Budget</p>
+    {{ field(form.item_budget, inputmode="decimal", placeholder="0.00") }}
+    <div class="note">{{ icon('info', 16) }}<span>The service fee is set by the category. You pay the rider the item or bill cost on top of it.</span></div>
+
+    <button class="btn btn-primary btn-lg btn-block" type="submit">Submit request</button>
   </form>
 </section>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="{{ url_for('static', filename='js/location_picker.js') }}"></script>
 {% endblock %}

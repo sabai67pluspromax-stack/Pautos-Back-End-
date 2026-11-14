@@ -1,27 +1,41 @@
 {% extends "base.html" %}
 {% from "auth/_field.html" import field %}
+{% from "_ui.html" import icon, initials %}
 {% block title %}My profile{% endblock %}
 {% block content %}
-<section class="card narrow">
-  <h1>My profile</h1>
-  <p class="muted">Email: {{ current_user.email }}</p>
-  {% if current_user.role == 'rider' %}
-    <p class="muted">Verification status: {{ profile.verification_status }}</p>
-  {% endif %}
+{% set is_rider = current_user.role == 'rider' %}
+<section class="page-narrow">
+  <div class="profile-head card">
+    <div class="avatar avatar-lg">{{ initials(current_user.full_name) }}</div>
+    <div class="profile-meta">
+      <h1>My profile</h1>
+      <p class="muted meta-line">{{ icon('mail', 14) }} <span>Email: {{ current_user.email }}</span></p>
+      {% if is_rider %}
+        {% set vs = profile.verification_status %}
+        {% set vs_cls = {'pending': 'warn', 'approved': 'ok', 'rejected': 'bad'}.get(vs, 'warn') %}
+        <p class="meta-line">{{ icon('shield', 14) }} <span class="muted">Verification status:</span> <span class="badge badge-{{ vs_cls }}">{{ vs|capitalize }}</span></p>
+      {% endif %}
+    </div>
+  </div>
 
-  <form method="post" novalidate>
+  <form method="post" novalidate class="card">
+    <p class="card-section-title">Personal details</p>
     {{ form.hidden_tag() }}
     {{ field(form.full_name, autocomplete="name") }}
-    {{ field(form.phone, autocomplete="tel") }}
-    {% if current_user.role == 'rider' %}
-      {{ field(form.vehicle_type) }}
-      {{ field(form.plate_number) }}
+    {{ field(form.phone, autocomplete="tel", hint="Philippine mobile number, e.g. 09171234567") }}
+    {% if is_rider %}
+      <div class="grid-2">
+        {{ field(form.vehicle_type) }}
+        {{ field(form.plate_number) }}
+      </div>
     {% else %}
       {{ field(form.default_address, autocomplete="street-address") }}
     {% endif %}
-    <button class="btn" type="submit">Save changes</button>
+    <div class="action-bar">
+      <a class="btn btn-ghost" href="{{ url_for('profile.change_password') }}">{{ icon('lock', 15) }} Change password</a>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" type="submit">Save changes</button>
+    </div>
   </form>
-
-  <p class="muted"><a href="{{ url_for('profile.change_password') }}">Change password</a></p>
 </section>
 {% endblock %}
