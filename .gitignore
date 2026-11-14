@@ -14,3 +14,12 @@ __pycache__/
 # IDE settings
 .vscode/
 .idea/
+
+build/
+.dart_tool/
+.idea/
+*.iml
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
